@@ -1,0 +1,24 @@
+#!/bin/rc
+
+# savehist - prune and save command history
+# usage: savehist
+
+# doc: add 'fn quit { savehist; exit }' to $home/lib/profile
+#      for to save history and exit when calling quit command
+
+# prepare defaults
+rfork ne
+temp=/tmp/savehist-$pid
+hist=$home/lib/rchistory
+
+touch $hist
+
+# process and save history
+cat < {cat $hist && grep -h $prompt(1) /dev/text} | \
+	sed 's/^.*'^$prompt(1)^'//' | \
+	tail -r | \
+	awk '!seen[$0]++' | \
+	tail -r \
+	> $temp
+
+	mv $temp $hist

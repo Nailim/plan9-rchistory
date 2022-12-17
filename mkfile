@@ -1,5 +1,6 @@
 </$objtype/mkfile
 
+RC=$home/bin/rc
 BIN=$home/bin/$objtype
 
 hist: hist.$O
@@ -13,3 +14,4 @@ clean:V:
 
 install:V:
 	mv hist $BIN/
+	cp savehist $RC/
