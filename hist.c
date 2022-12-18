@@ -146,7 +146,7 @@ main(int argc, char **argv)
 
 		int pcx = 0;
 		
-		int pco = (sizeof prompt) - 3;
+		int pco = strlen(prompt) - 3;
 
 		print("# local history\n");
 		
