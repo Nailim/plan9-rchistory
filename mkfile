@@ -15,3 +15,7 @@ clean:V:
 install:V:
 	mv hist $BIN/
 	cp savehist $RC/
+
+uninstall:V:
+	rm -f $BIN/hist
+	rm -f $RC/savehist
