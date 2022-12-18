@@ -116,13 +116,20 @@ main(int argc, char **argv)
 	}ARGEND
 
 	char* prompt = getenv("prompt");
+	char* home = getenv("home");
+
+	char* relhpath = "/lib/rchistory";
+	char* histpath = malloc(strlen(home) + strlen(relhpath) + 1);
+	memset(histpath, 0, strlen(home) + strlen(relhpath) + 1);
+	strcat(histpath, home);
+	strcat(histpath, relhpath);
 
 
 
 	/* stand alone segment - print out history */
 
 	if(!isinteractive){
-		int tfd, fr;
+		int tfd, hfd, fr;
 		ulong tsize = 0;
 		
 		char linebf[1024];
@@ -138,6 +145,22 @@ main(int argc, char **argv)
 		close(tfd);
 
 
+		/* print global history from $home/lib/rchistory */
+		
+		print("# global history\n");
+		
+		hfd = open(histpath, OREAD);
+		if(hfd > 0){
+			for(;;){
+				fr = read(hfd, linebf, sizeof linebf);
+				write(1, linebf, fr);
+				if(fr < sizeof linebf)
+					break;
+			}
+		close(hfd);
+		}
+
+
 		/* parse and print local history from /dev/text */
 
 		int tc;
@@ -146,7 +169,7 @@ main(int argc, char **argv)
 
 		int pcx = 0;
 		
-		int pco = strlen(prompt) - 3;
+		int pco = strlen(prompt) - 3; /* what are the extra characters at the end */
 
 		print("# local history\n");
 		
