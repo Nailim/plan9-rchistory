@@ -118,11 +118,10 @@ main(int argc, char **argv)
 	char* prompt = getenv("prompt");
 	char* home = getenv("home");
 
-	char* relhpath = "/lib/rchistory";
-	char* histpath = malloc(strlen(home) + strlen(relhpath) + 1);
-	memset(histpath, 0, strlen(home) + strlen(relhpath) + 1);
+	char histpath[128];
+	memset(histpath, 0, sizeof histpath);
 	strcat(histpath, home);
-	strcat(histpath, relhpath);
+	strcat(histpath, "/lib/rchistory");
 
 
 
