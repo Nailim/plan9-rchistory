@@ -20,11 +20,29 @@ But most, in my opinion, important reason: **learning**! The frustration of deal
 
 ### install
 
+Installs to user folder $home/bin/rc and $home/bin/$objtype.
+
 `mk install`
+
+### uninstall
+
+Removes from user folder.
+
+`mk uninstall`
 
 ## usage
 
-For now, run hist command to print out the commands used in this terminal window (we'll call that local history). More to come.
+**hist**
+
+Run *hist* command to print out the commands used in this terminal window. By default it parses and prints history from the current terminal window (local history). To include history saved from all terminal windows (global history) use "-g" flag. To print out only global history use "-G" flag.
+
+**savehist**
+
+Run *savehist* command to parse and save current local history to global history, located in $home/lib/rchistory file.
+
+Define a *quit* function to save and exit the current terminal window by defining the following rc function in your user profile:
+
+`fn quit { savehist; exit }`
 
 ## faq
 
@@ -39,3 +57,7 @@ Good question! I like you, you're trying to figure out something new. Unfortunat
 ### is this for me
 
 In short, probably not. This requires some previous knowledge, and by the time that knowledge is acquired, you'll already have an answer to this question.
+
+### no man page
+
+All in good time
