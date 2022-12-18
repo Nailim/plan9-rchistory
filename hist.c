@@ -98,7 +98,7 @@ process(char *s)
 static void
 usage(void)
 {
-	fprint(2, "usage: %s [-i]\n", argv0);
+	fprint(2, "usage: %s [-i] [-g | -G]\n", argv0);
 	exits("usage");
 }
 
@@ -106,14 +106,25 @@ void
 main(int argc, char **argv)
 {
 	int isinteractive = 0;
+	int uselocal = 1;
+	int useglobal = 0;
+
 
 	ARGBEGIN{
 	case 'i':
 		isinteractive = 1;
 		break;
+	case 'g':
+		useglobal = 1;
+		break;
+	case 'G':
+		uselocal = 0;
+		useglobal = 1;
+		break;
 	default:
 		usage();
 	}ARGEND
+
 
 	char* prompt = getenv("prompt");
 	char* home = getenv("home");
@@ -145,64 +156,66 @@ main(int argc, char **argv)
 
 
 		/* print global history from $home/lib/rchistory */
-		
-		print("# global history\n");
-		
-		hfd = open(histpath, OREAD);
-		if(hfd > 0){
-			for(;;){
-				fr = read(hfd, linebf, sizeof linebf);
-				write(1, linebf, fr);
-				if(fr < sizeof linebf)
-					break;
+		if(useglobal){
+			print("# global history\n");
+
+			hfd = open(histpath, OREAD);
+			if(hfd > 0){
+				for(;;){
+					fr = read(hfd, linebf, sizeof linebf);
+					write(1, linebf, fr);
+					if(fr < sizeof linebf)
+						break;
+				}
+			close(hfd);
 			}
-		close(hfd);
 		}
 
 
 		/* parse and print local history from /dev/text */
+		if(uselocal){
+			int tc;
+			int lc = 0;
+			int pc = 0;
 
-		int tc;
-		int lc = 0;
-		int pc = 0;
-
-		int pcx = 0;
+			int pcx = 0;
 		
-		int pco = strlen(prompt) - 3; /* what are the extra characters at the end */
+			int pco = strlen(prompt) - 3; /* what are the extra characters at the end */
 
-		print("# local history\n");
+			print("# local history\n");
 		
 
-		tfd = open("/dev/text", OREAD);
-		for(tc = 0;tc < tsize; tc++){
-			read(tfd, &linebf[lc], 1);
+			tfd = open("/dev/text", OREAD);
+			for(tc = 0;tc < tsize; tc++){
+				read(tfd, &linebf[lc], 1);
 			
-			if(pcx){
-				if(linebf[lc] == '\n'){
-					/* got EOL - cmd line end */
-					write(1, &linebf[pco+1], lc-pco);
-					pcx = 0;
-					pc = 0;
-					lc = 0;
-				} else {
-					lc++;
-				}
-			} else {
-				if(linebf[lc] == prompt[pc]){
-					lc++;
-					pc++;
-					if(pc > pco){
-						/* got prompt - cmd line beginn */
-						pcx = 1;
+				if(pcx){
+					if(linebf[lc] == '\n'){
+						/* got EOL - cmd line end */
+						write(1, &linebf[pco+1], lc-pco);
+						pcx = 0;
+						pc = 0;
+						lc = 0;
+					} else {
+						lc++;
 					}
 				} else {
-					lc = 0;
-					pc = 0;
-					pcx = 0;
-				}
-			}			
+					if(linebf[lc] == prompt[pc]){
+						lc++;
+						pc++;
+						if(pc > pco){
+							/* got prompt - cmd line beginn */
+							pcx = 1;
+						}
+					} else {
+						lc = 0;
+						pc = 0;
+						pcx = 0;
+					}
+				}			
+			}
+			close(tfd);
 		}
-		close(tfd);
 
 		exits(nil);
 	}
