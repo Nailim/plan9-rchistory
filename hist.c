@@ -95,6 +95,27 @@ process(char *s)
 		exits(nil);
 }
 
+ulong
+textsize(void)
+{
+	int fd, r;
+	ulong sum = 0;
+		
+	char buf[1024];
+
+	/* get current /dev/text size */
+	fd = open("/dev/text", OREAD);
+	for(;;){
+		r = read(fd, buf, sizeof buf);
+		sum = sum + r;
+		if(r < sizeof buf)
+			break;
+	}
+	close(fd);
+	
+	return sum;
+}
+
 static void
 usage(void)
 {
@@ -140,19 +161,12 @@ main(int argc, char **argv)
 
 	if(!isinteractive){
 		int tfd, hfd, fr;
-		ulong tsize = 0;
+		ulong tsize;
 		
 		char linebf[1024];
 
 		/* get current /dev/text size */
-		tfd = open("/dev/text", OREAD);
-		for(;;){
-			fr = read(tfd, linebf, sizeof linebf);
-			tsize = tsize + fr;
-			if(fr < sizeof linebf)
-				break;
-		}
-		close(tfd);
+		tsize = textsize();
 
 
 		/* print global history from $home/lib/rchistory */
@@ -187,8 +201,8 @@ main(int argc, char **argv)
 
 			tfd = open("/dev/text", OREAD);
 			for(tc = 0;tc < tsize; tc++){
+				/* TODO improve - kills itself with syscals and context switches */
 				read(tfd, &linebf[lc], 1);
-			
 				if(pcx){
 					if(linebf[lc] == '\n'){
 						/* got EOL - cmd line end */
