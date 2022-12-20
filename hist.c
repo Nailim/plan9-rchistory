@@ -3,7 +3,6 @@
 #include <keyboard.h>
 
 static int mod;
-static int count;
 
 enum {
 	Mmod4 = 1<<0,
@@ -11,6 +10,34 @@ enum {
 	Mshift = 1<<2,
 	Malt = 1<<3,
 };
+
+static char* prompt;
+static char* home;
+
+static ulong tsize;
+
+
+ulong
+textsize(char* fname)
+{
+	int fd, r;
+	ulong sum = 0;
+		
+	char buf[1024];
+
+	/* get current /dev/text size */
+	fd = open(fname, OREAD);
+	for(;;){
+		r = read(fd, buf, sizeof buf);
+		sum = sum + r;
+		if(r < sizeof buf)
+			break;
+	}
+	close(fd);
+	
+	return sum;
+}
+
 
 static void
 process(char *s)
@@ -44,37 +71,123 @@ process(char *s)
 			break;
 		}
 		
-		/* mz code ... */
+		/* my code ... */
 		skip = 0;
-		if(*s == 'c'){
-			if(r == Kup && mod == Mctl){
+		if(*s == 'c' && mod == Mctl){
+			if(r == Kup){
 				fprint(2, "\nCTRL + Key UP\n");
-				skip = 1;
-			}
-			if(r == Kdown && mod == Mctl){
-				fprint(2, "\nCTRL + Key DOWN\n");
-				skip = 1;
-			}
-			if(r == 21 && mod == Mctl){
-				fprint(2, "\nCTRL + U\n");
-				skip = 1;
-			}
-			fprint(2, "\nChar: %d\n", r);
-		}
-		if(r == 'p'){
-			fprint(2, "\nCTRL + U AS char p\n");
-			int fdc;
-			char buf[64];
+// from here
+//
+	int tfd, hfd, fr;
+		
+	char linebf[1024];
+	char cmdbf[1024];
+	
 
-			fdc = open("/dev/kbdin", OWRITE);
-			//sprint(buf, ":%d", 21);
+
+	fprint(2, "\nNothing yet ...\n\n");
+
+
+	long hc;
+
+	int lbc = sizeof linebf - 1;
+
+// set aside for parsing prompt
+//
+//prompt = getenv("prompt");
+//free(prompt);
+//int pco = strlen(prompt) - 3; /* what are the extra characters at the end */
+//
+//int scr = -1;
+//scr = strncmp(&linebf[lbc+1], prompt, pco);
+//if(scr == 0){
+//	
+//	write(2, &linebf[lbc+pco+1+1], sizeof linebf - 1 - 1 - pco - lbc);
+//	fprint(2,"\n");
+//}
+
+			home = getenv("home");
+
+			char histpath[128];
+			memset(histpath, 0, sizeof histpath);
+			strcat(histpath, home);
+			strcat(histpath, "/lib/rchistory");
+
+	fprint(2, "%d\n", tsize);
+	if(tsize == 0){
+		fprint(2, "NEW tsize!!!");
+		tsize = textsize(histpath);
+	}
+	fprint(2, "%d\n", tsize);
+
+			fprint(2, "# global history %s\n", histpath);
+
+			hfd = open(histpath, OREAD);
+	/* -1 to remove last LF (first one read) */
+	for(hc = tsize; hc >= 0; hc--){
+		pread(hfd, &linebf[lbc], 1, hc-1);
+		//fprint(2,"%c\n", linebf[lbc]);
+		if(linebf[lbc] == '\n' || hc == 0){
+			fprint(2,"\nLine: %d %d %d - ", hc, lbc, sizeof linebf);
+			write(2, &linebf[lbc+1], sizeof linebf - 1 - lbc);
+
+			memset(cmdbf, 0, sizeof cmdbf);
+			
+			char buf[8];
 			buf[0] = 2;
 			buf[1] = 5;
 			buf[2] = 21;
-			write(fdc, buf, 3);
-			sprint(buf, "%s", "ll");
-			write(fdc, buf, 2);
-			close(fdc);
+			int kfd;
+			kfd = open("/dev/kbdin", OWRITE);
+			write(kfd, buf, 3);
+			strncat(cmdbf, &linebf[lbc+1], sizeof linebf - 1 - lbc);
+			write(kfd, &linebf[lbc+1], sizeof linebf - 1 - lbc);
+			close(kfd);
+
+			tsize = hc - 1;
+
+			break;
+			
+			//lbc = sizeof linebf - 1;
+		} else {
+			lbc--;
+		}
+		
+	}
+	close(hfd);
+
+	free(home);
+
+//
+// to here
+				skip = 1;
+			}
+			if(r == Kdown){
+				fprint(2, "\nCTRL + Key DOWN\n");
+				skip = 1;
+			}
+			fprint(2, "\nChar: %d\n", r);
+
+		
+		}
+//		if(r == 'p'){
+//			fprint(2, "\nCTRL + U AS char p\n");
+//			int fdc;
+//			char buf[64];
+//
+//			fdc = open("/dev/kbdin", OWRITE);
+//			//sprint(buf, ":%d", 21);
+//			buf[0] = 2;
+//			buf[1] = 5;
+//			buf[2] = 21;
+//			write(fdc, buf, 3);
+//			sprint(buf, "%s", "ll");
+//			write(fdc, buf, 2);
+//			close(fdc);
+//		}
+		if(r == '\n'){
+			fprint(2, "\nENTER!!!\n");
+			tsize = 0;
 		}
 
 
@@ -95,26 +208,6 @@ process(char *s)
 		exits(nil);
 }
 
-ulong
-textsize(void)
-{
-	int fd, r;
-	ulong sum = 0;
-		
-	char buf[1024];
-
-	/* get current /dev/text size */
-	fd = open("/dev/text", OREAD);
-	for(;;){
-		r = read(fd, buf, sizeof buf);
-		sum = sum + r;
-		if(r < sizeof buf)
-			break;
-	}
-	close(fd);
-	
-	return sum;
-}
 
 static void
 usage(void)
@@ -147,30 +240,29 @@ main(int argc, char **argv)
 	}ARGEND
 
 
-	char* prompt = getenv("prompt");
-	char* home = getenv("home");
-
-	char histpath[128];
-	memset(histpath, 0, sizeof histpath);
-	strcat(histpath, home);
-	strcat(histpath, "/lib/rchistory");
-
-
 
 	/* stand alone segment - print out history */
 
 	if(!isinteractive){
+		prompt = getenv("prompt");
+
 		int tfd, hfd, fr;
-		ulong tsize;
 		
 		char linebf[1024];
 
 		/* get current /dev/text size */
-		tsize = textsize();
+		tsize = textsize("/dev/text");
 
 
 		/* print global history from $home/lib/rchistory */
 		if(useglobal){
+			home = getenv("home");
+
+			char histpath[128];
+			memset(histpath, 0, sizeof histpath);
+			strcat(histpath, home);
+			strcat(histpath, "/lib/rchistory");
+
 			print("# global history\n");
 
 			hfd = open(histpath, OREAD);
@@ -181,8 +273,10 @@ main(int argc, char **argv)
 					if(fr < sizeof linebf)
 						break;
 				}
-			close(hfd);
+				close(hfd);
 			}
+
+			free(home);
 		}
 
 
@@ -231,6 +325,8 @@ main(int argc, char **argv)
 			close(tfd);
 		}
 
+		free(prompt);
+
 		exits(nil);
 	}
 
@@ -238,13 +334,11 @@ main(int argc, char **argv)
 
 	/* interactive segment - manipulate console promt */
 
-	print("Nothing yet ...");
+	print("\nNothing yet ...\n\n");
 	exits(nil);
 
 	char b[128];
 	int i, j, n;
-
-	count = 0;
 
 	for(i = 0;;){
 		if((n = read(0, b+i, sizeof(b)-i)) <= 0)
