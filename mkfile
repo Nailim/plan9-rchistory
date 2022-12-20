@@ -10,7 +10,7 @@ hist.$O: hist.c
 	$CC $CFLAGS hist.c
 
 clean:V:
-	rm *.$O hist
+	rm -f *.$O hist
 
 install:V:
 	mv hist $BIN/
