@@ -20,6 +20,9 @@ static ulong tsize;
 ulong
 textsize(char* fname)
 {
+	/* read text file insted of using file stats */
+	/* some files like /dev/text have size 0 since they are generated */
+
 	int fd, r;
 	ulong sum = 0;
 		
@@ -39,6 +42,101 @@ textsize(char* fname)
 }
 
 
+void
+toprompt(char* text, int len)
+{
+	int kfd;
+	char ctlbf[8];
+
+	ctlbf[0] = 2;
+	ctlbf[1] = 5;
+	ctlbf[2] = 21;
+
+	kfd = open("/dev/kbdin", OWRITE);
+
+	write(kfd, ctlbf, 3);
+			
+	write(kfd, text, len);
+
+	close(kfd);
+}
+
+
+void
+processhist(int hop)
+{
+	/* history operations (hop) legend: */
+	/* +1 - read history foreward */
+	/* -1 - read history backward */
+
+	int tfd, hfd, fr, lbc;
+		
+	char linebf[1024];
+	char histpath[256];
+	
+	long hc;
+
+	lbc = sizeof linebf - 1;
+
+
+	/* so far only for global history */
+
+
+	fprint(2, "\nProcessing history ... %d ...\n\n", hop);
+
+
+
+	home = getenv("home");
+
+	memset(histpath, 0, sizeof histpath);
+	strcat(histpath, home);
+	strcat(histpath, "/lib/rchistory");
+
+	fprint(2, "%d\n", tsize);
+	if(tsize == 0){
+		fprint(2, "NEW tsize!!!");
+		tsize = textsize(histpath);
+	}
+	fprint(2, "%d\n", tsize);
+
+	fprint(2, "# global history %s\n", histpath);
+
+	hfd = open(histpath, OREAD);
+	/* -1 to remove last LF (first one read) */
+	for(hc = tsize; hc >= 0; hc--){
+		pread(hfd, &linebf[lbc], 1, hc-1);
+		//fprint(2,"%c\n", linebf[lbc]);
+		if(linebf[lbc] == '\n' || hc == 0){
+			fprint(2,"\nLine: %d %d %d - ", hc, lbc, sizeof linebf);
+			write(2, &linebf[lbc+1], sizeof linebf - 1 - lbc);
+
+			toprompt(&linebf[lbc+1], sizeof linebf - lbc - 1);
+
+			tsize = hc - 1;
+
+			break;
+		} else {
+			lbc--;
+		}
+	}
+	close(hfd);
+
+	free(home);
+
+
+/* set aside for parsing prompt */
+//prompt = getenv("prompt");
+//free(prompt);
+//int pco = strlen(prompt) - 3; /* what are the extra characters at the end */
+//int scr = -1;
+//scr = strncmp(&linebf[lbc+1], prompt, pco);
+//if(scr == 0){
+//	write(2, &linebf[lbc+pco+1+1], sizeof linebf - 1 - 1 - pco - lbc);
+//	fprint(2,"\n");
+//}
+}
+
+
 static void
 process(char *s)
 {
@@ -48,6 +146,8 @@ process(char *s)
 
 	o = 0;
 	b[o++] = *s;
+
+	int hop = 0;
 	
 	/* mod key */
 	if(*s == 'k' || *s == 'K'){
@@ -76,123 +176,32 @@ process(char *s)
 		if(*s == 'c' && mod == Mctl){
 			if(r == Kup){
 				fprint(2, "\nCTRL + Key UP\n");
-// from here
-//
-	int tfd, hfd, fr;
-		
-	char linebf[1024];
-	char cmdbf[1024];
-	
-
-
-	fprint(2, "\nNothing yet ...\n\n");
-
-
-	long hc;
-
-	int lbc = sizeof linebf - 1;
-
-// set aside for parsing prompt
-//
-//prompt = getenv("prompt");
-//free(prompt);
-//int pco = strlen(prompt) - 3; /* what are the extra characters at the end */
-//
-//int scr = -1;
-//scr = strncmp(&linebf[lbc+1], prompt, pco);
-//if(scr == 0){
-//	
-//	write(2, &linebf[lbc+pco+1+1], sizeof linebf - 1 - 1 - pco - lbc);
-//	fprint(2,"\n");
-//}
-
-			home = getenv("home");
-
-			char histpath[128];
-			memset(histpath, 0, sizeof histpath);
-			strcat(histpath, home);
-			strcat(histpath, "/lib/rchistory");
-
-	fprint(2, "%d\n", tsize);
-	if(tsize == 0){
-		fprint(2, "NEW tsize!!!");
-		tsize = textsize(histpath);
-	}
-	fprint(2, "%d\n", tsize);
-
-			fprint(2, "# global history %s\n", histpath);
-
-			hfd = open(histpath, OREAD);
-	/* -1 to remove last LF (first one read) */
-	for(hc = tsize; hc >= 0; hc--){
-		pread(hfd, &linebf[lbc], 1, hc-1);
-		//fprint(2,"%c\n", linebf[lbc]);
-		if(linebf[lbc] == '\n' || hc == 0){
-			fprint(2,"\nLine: %d %d %d - ", hc, lbc, sizeof linebf);
-			write(2, &linebf[lbc+1], sizeof linebf - 1 - lbc);
-
-			memset(cmdbf, 0, sizeof cmdbf);
-			
-			char buf[8];
-			buf[0] = 2;
-			buf[1] = 5;
-			buf[2] = 21;
-			int kfd;
-			kfd = open("/dev/kbdin", OWRITE);
-			write(kfd, buf, 3);
-			strncat(cmdbf, &linebf[lbc+1], sizeof linebf - 1 - lbc);
-			write(kfd, &linebf[lbc+1], sizeof linebf - 1 - lbc);
-			close(kfd);
-
-			tsize = hc - 1;
-
-			break;
-			
-			//lbc = sizeof linebf - 1;
-		} else {
-			lbc--;
-		}
-		
-	}
-	close(hfd);
-
-	free(home);
-
-//
-// to here
+				hop = 1;
 				skip = 1;
 			}
 			if(r == Kdown){
 				fprint(2, "\nCTRL + Key DOWN\n");
+				hop = -1;
 				skip = 1;
 			}
 			fprint(2, "\nChar: %d\n", r);
 
-		
+			if(hop !=0)
+				processhist(hop);
 		}
-//		if(r == 'p'){
-//			fprint(2, "\nCTRL + U AS char p\n");
-//			int fdc;
-//			char buf[64];
-//
-//			fdc = open("/dev/kbdin", OWRITE);
-//			//sprint(buf, ":%d", 21);
-//			buf[0] = 2;
-//			buf[1] = 5;
-//			buf[2] = 21;
-//			write(fdc, buf, 3);
-//			sprint(buf, "%s", "ll");
-//			write(fdc, buf, 2);
-//			close(fdc);
-//		}
-		if(r == '\n'){
+
+		/* reset history tracking */
+		if(r == 10){
+			/* enter key */
 			fprint(2, "\nENTER!!!\n");
 			tsize = 0;
 		}
+		if(r == 127){
+			/* delete key */
+			fprint(2, "\nDELETE!!!\n");
+			tsize = 0;
+		}
 
-
-
-		//skip = 0;
 		if(!skip){
 			memmove(b+o, p, n);
 			o += n;
@@ -250,9 +259,6 @@ main(int argc, char **argv)
 		
 		char linebf[1024];
 
-		/* get current /dev/text size */
-		tsize = textsize("/dev/text");
-
 
 		/* print global history from $home/lib/rchistory */
 		if(useglobal){
@@ -282,6 +288,7 @@ main(int argc, char **argv)
 
 		/* parse and print local history from /dev/text */
 		if(uselocal){
+
 			int tc;
 			int lc = 0;
 			int pc = 0;
@@ -290,8 +297,10 @@ main(int argc, char **argv)
 		
 			int pco = strlen(prompt) - 3; /* what are the extra characters at the end */
 
+			/* get current /dev/text size before we exand it */
+			tsize = textsize("/dev/text");
+
 			print("# local history\n");
-		
 
 			tfd = open("/dev/text", OREAD);
 			for(tc = 0;tc < tsize; tc++){
