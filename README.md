@@ -30,7 +30,35 @@ Removes from user folder.
 
 `mk uninstall`
 
+### configuration
+
+For interactive mode it should be configured as riow or reform/shortcuts component that uses /dev/kbdtap.
+
+For example, the following line should be inserted in *$home/bin/rc/riostart* file:
+
+`</dev/kbdtap hist -i >/dev/kbdtap`
+
+If you're having issues with additional windows on startup, you can put the previous definition on to a separate script and call that from riostart file.
+
+For example, create a script srw as *$home/bin/rc/srw* (with riow for pipe examples):
+
+```
+#!/bin/rc
+
+# srw
+# start riow bind
+
+# set up riow with bar and command history
+< /dev/kbdtap riow | hist -i >/dev/kbdtap |[3] bar -p tl -d 'WW hh:mm:ss'
+```
+
+And then call the script in *$home/bin/rc/riostart* file:
+
+`window srw`
+
 ## usage
+
+### standalone
 
 **hist**
 
@@ -43,6 +71,14 @@ Run *savehist* command to parse and save current local history to global history
 Define a *quit* function to save and exit the current terminal window by defining the following rc function in your user profile:
 
 `fn quit { savehist; exit }`
+
+### interactive
+
+**hist**
+
+Use CTRL + UP or CTRL + DOWN key conbinations to insert previous or next line of history in to the prompt.
+
+> Currently interactive mode only works with global history file in $home/lib/rchistory
 
 ## faq
 
@@ -60,4 +96,8 @@ In short, probably not. This requires some previous knowledge, and by the time t
 
 ### no man page
 
-All in good time
+All in good time.
+
+### could this be configured (or developed) better
+
+Most probably. Please tell me how to improve it.
