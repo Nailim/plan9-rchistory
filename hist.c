@@ -48,14 +48,13 @@ toprompt(char* text, int len)
 	int kfd;
 	char ctlbf[8];
 
-	ctlbf[0] = 2;
-	ctlbf[1] = 5;
-	ctlbf[2] = 21;
+	ctlbf[0] = 2;	/* STX (ctrl+b) - move cursor to prompt */
+	ctlbf[1] = 5;	/* ENQ (ctrl+e) - move cursor to end of text in promt */
+	ctlbf[2] = 21;	/* NAK (ctrl+u) - delete everything behind cursor */
 
 	kfd = open("/dev/kbdin", OWRITE);
 
 	write(kfd, ctlbf, 3);
-			
 	write(kfd, text, len);
 
 	close(kfd);
@@ -66,8 +65,8 @@ void
 processhist(int hop)
 {
 	/* history operations (hop) legend: */
-	/* +1 - read history foreward */
-	/* -1 - read history backward */
+	/* >0 - history foreward by x */
+	/* <0 - history backward by x */
 
 	int tfd, hfd, fr, lbc;
 		
@@ -100,25 +99,67 @@ processhist(int hop)
 	fprint(2, "%d\n", tsize);
 
 	fprint(2, "# global history %s\n", histpath);
+	
+	memset(linebf, 0, sizeof linebf);
 
 	hfd = open(histpath, OREAD);
+
+	/* history foreward */
+	if(hop > 0){
 	/* -1 to remove last LF (first one read) */
-	for(hc = tsize; hc >= 0; hc--){
-		pread(hfd, &linebf[lbc], 1, hc-1);
-		//fprint(2,"%c\n", linebf[lbc]);
-		if(linebf[lbc] == '\n' || hc == 0){
-			fprint(2,"\nLine: %d %d %d - ", hc, lbc, sizeof linebf);
-			write(2, &linebf[lbc+1], sizeof linebf - 1 - lbc);
+		for(hc = tsize; hc >= 0; hc--){
+			pread(hfd, &linebf[lbc], 1, hc-1);
+			//fprint(2,"%c\n", linebf[lbc]);
+			if(linebf[lbc] == '\n' || hc == 0){
+				if(lbc == sizeof linebf - 1){
+					fprint(2, "!!! single\n");
+					lbc--;
+				} else {
+					fprint(2,"\nLine: %d %d %d - ", hc, lbc, sizeof linebf);
+					write(2, &linebf[lbc+1], sizeof linebf - 1 - lbc);
 
-			toprompt(&linebf[lbc+1], sizeof linebf - lbc - 1);
+					toprompt(&linebf[lbc+1], sizeof linebf - lbc - 1);
 
-			tsize = hc - 1;
+					tsize = hc - 1;
 
-			break;
-		} else {
+					break;
+				}
+			}	
 			lbc--;
+
 		}
 	}
+
+	/* history backward */
+	int lc = 0;
+	
+	if(hop < 0){
+		for(hc = tsize; ; hc++){
+			fr = pread(hfd, &linebf[lc], 1, hc);
+			if(fr == 0){
+				toprompt("",0);
+				fprint(2, "FR == 0\n");
+				break;
+			}
+
+			fprint(2, "%d - %d %c\n", hc, linebf[lc], linebf[lc]);
+			if(linebf[lc] == '\n'){
+				fprint(2, "!found line\n");
+				if(lc == 0){
+					fprint(2, "!!! single\n");
+					//lc--;
+					continue;
+				}
+
+				write(2, linebf, lc);
+				toprompt(&linebf[0], lc);
+				tsize = hc + 1;
+				break;
+			}
+			lc++;
+		}
+	}
+
 	close(hfd);
 
 	free(home);
@@ -289,7 +330,7 @@ main(int argc, char **argv)
 		/* parse and print local history from /dev/text */
 		if(uselocal){
 
-			int tc;
+			long tc;
 			int lc = 0;
 			int pc = 0;
 
@@ -338,7 +379,6 @@ main(int argc, char **argv)
 
 		exits(nil);
 	}
-
 
 
 	/* interactive segment - manipulate console promt */
