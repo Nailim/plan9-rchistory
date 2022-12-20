@@ -80,53 +80,37 @@ processhist(int hop)
 
 	/* so far only for global history */
 
-
-	fprint(2, "\nProcessing history ... %d ...\n\n", hop);
-
-
-
 	home = getenv("home");
 
 	memset(histpath, 0, sizeof histpath);
 	strcat(histpath, home);
 	strcat(histpath, "/lib/rchistory");
 
-	fprint(2, "%d\n", tsize);
+	/* no history file has been opened yet or we are at the end */
 	if(tsize == 0){
-		fprint(2, "NEW tsize!!!");
 		tsize = textsize(histpath);
 	}
-	fprint(2, "%d\n", tsize);
-
-	fprint(2, "# global history %s\n", histpath);
 	
 	memset(linebf, 0, sizeof linebf);
 
 	hfd = open(histpath, OREAD);
 
+	if(hfd < 0)
+		exits(nil);
+
 	/* history foreward */
 	if(hop > 0){
-	/* -1 to remove last LF (first one read) */
 		for(hc = tsize; hc >= 0; hc--){
 			pread(hfd, &linebf[lbc], 1, hc-1);
-			//fprint(2,"%c\n", linebf[lbc]);
 			if(linebf[lbc] == '\n' || hc == 0){
-				if(lbc == sizeof linebf - 1){
-					fprint(2, "!!! single\n");
-					lbc--;
-				} else {
-					fprint(2,"\nLine: %d %d %d - ", hc, lbc, sizeof linebf);
-					write(2, &linebf[lbc+1], sizeof linebf - 1 - lbc);
+				if(lbc == sizeof linebf - 1)
+					continue;
 
-					toprompt(&linebf[lbc+1], sizeof linebf - lbc - 1);
-
-					tsize = hc - 1;
-
-					break;
-				}
+				toprompt(&linebf[lbc+1], sizeof linebf - lbc - 1);
+				tsize = hc - 1;
+				break;
 			}	
 			lbc--;
-
 		}
 	}
 
@@ -137,21 +121,15 @@ processhist(int hop)
 		for(hc = tsize; ; hc++){
 			fr = pread(hfd, &linebf[lc], 1, hc);
 			if(fr == 0){
+				/* no more history, set prompt to empty */
 				toprompt("",0);
-				fprint(2, "FR == 0\n");
 				break;
 			}
 
-			fprint(2, "%d - %d %c\n", hc, linebf[lc], linebf[lc]);
 			if(linebf[lc] == '\n'){
-				fprint(2, "!found line\n");
-				if(lc == 0){
-					fprint(2, "!!! single\n");
-					//lc--;
+				if(lc == 0)
 					continue;
-				}
 
-				write(2, linebf, lc);
 				toprompt(&linebf[0], lc);
 				tsize = hc + 1;
 				break;
@@ -165,7 +143,7 @@ processhist(int hop)
 	free(home);
 
 
-/* set aside for parsing prompt */
+/* set aside for parsing prompt - ignore */
 //prompt = getenv("prompt");
 //free(prompt);
 //int pco = strlen(prompt) - 3; /* what are the extra characters at the end */
@@ -192,7 +170,6 @@ process(char *s)
 	
 	/* mod key */
 	if(*s == 'k' || *s == 'K'){
-		fprint(2, "\nmod key: %d\n,", *s);
 		mod = 0;
 		if(utfrune(s+1, Kmod4) != nil)
 			mod |= Mmod4;
@@ -212,20 +189,17 @@ process(char *s)
 			break;
 		}
 		
-		/* my code ... */
+		/* react to key combinations */
 		skip = 0;
 		if(*s == 'c' && mod == Mctl){
 			if(r == Kup){
-				fprint(2, "\nCTRL + Key UP\n");
 				hop = 1;
 				skip = 1;
 			}
 			if(r == Kdown){
-				fprint(2, "\nCTRL + Key DOWN\n");
 				hop = -1;
 				skip = 1;
 			}
-			fprint(2, "\nChar: %d\n", r);
 
 			if(hop !=0)
 				processhist(hop);
@@ -234,12 +208,10 @@ process(char *s)
 		/* reset history tracking */
 		if(r == 10){
 			/* enter key */
-			fprint(2, "\nENTER!!!\n");
 			tsize = 0;
 		}
 		if(r == 127){
 			/* delete key */
-			fprint(2, "\nDELETE!!!\n");
 			tsize = 0;
 		}
 
@@ -382,9 +354,6 @@ main(int argc, char **argv)
 
 
 	/* interactive segment - manipulate console promt */
-
-	print("\nNothing yet ...\n\n");
-	exits(nil);
 
 	char b[128];
 	int i, j, n;
