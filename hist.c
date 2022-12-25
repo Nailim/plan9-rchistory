@@ -303,24 +303,24 @@ main(int argc, char **argv)
 			int tfd, rc;
 
 			prompt = getenv("prompt");
-			/* zero out excess characters at the end of prompt variable*/
+			/* zero out excess characters at the end of prompt variable */
 			#define POFF 2
 			memset(prompt + strlen(prompt) - POFF, 0, POFF);
 
+			int prc = strlen(prompt);
 
 			long tr = 0;	// text read
 			long tp = 0;	// text proccesed
 
-			char* ssp;
-			char* sse;
+			char* ssp;		// pointer to prompt
+			char* sse;		// pointer to EOL
 
-			int bfl = LBFS - 1;
-			int bfld = 0;
+			int bfl = LBFS - 1;	// buffer left to read in
+			int bfld = 0;		// buffer diff between moved and remaining space
 
 			memset(linebf, 0, LBFS);
 
-
-			/* get current /dev/text size before we exand it */
+			/* get current /dev/text size before we expand it */
 			tsize = textsize("/dev/text");
 
 			print("# local history\n");
@@ -330,130 +330,47 @@ main(int argc, char **argv)
 			/* first read exception */
 			if(bfl > tsize){
 				bfl = tsize;
-				bfld = ((LBFS-1)-bfl);
+				bfld = ((LBFS-1) - bfl);
 			}
-			int xx =0;
+
 			while(tp < tsize){
-				//fprint(1,"\ntp: %d tsize: %d bool: %d\n", tp, tsize, (tp < tsize));
-				xx = 0 ;
 				rc = read(tfd, linebf + ((LBFS-1)-bfl) - bfld,  bfl);
 				bfl -= rc;
 				bfld = 0;
 				tr += rc;
 
-				//fprint(1, "Size of line: %d rc: %d xx: %d\n", strlen(linebf), rc, xx);
-				//fprint(1,"\n@");
-				//write(1, linebf, LBFS);
-				//fprint(1,"@\n");
-				//for(xx=0; xx < LBFS; xx++){
-				//	fprint(1, "%02X ", linebf[xx]);
-				//}
-				//fprint(1,"\n");
-
 				ssp = strstr(linebf, prompt);
-				//fprint(1, ">SSP linebf %lld ssp %lld diff %lld\n", linebf, ssp, ssp-linebf);
-
 				if(ssp != 0){
-					//fprint(1, "PROMPT %d\n", ssp-linebf);
 					if(ssp-linebf > 0){
-						//fprint(1, "MEMMOVE %d\n", (ssp-linebf));
-						//fprint(1, "\n|%s|\n", linebf);
-						memmove(linebf, ssp, (sizeof linebf)-(ssp-linebf));
-						memset(linebf+(sizeof linebf)-(ssp-linebf), 0, ssp-linebf);
-						//tc += (ssp-linebf);
-						//fprint(1, "\n#%s#\n", linebf);
+						memmove(linebf, ssp, LBFS - (ssp-linebf));
+						memset(linebf + LBFS - (ssp-linebf), 0, (ssp-linebf));
 						bfl += ((ssp-linebf));
 						tp += ((ssp-linebf));
-						//fprint(1, "SSP bfl: %d tp: %d\n", bfl, tp);
 					}
 
 					sse = strchr(linebf, '\n');
-					//fprint(1, ">SSE linebf %lld sse %lld diff %lld\n", linebf, sse, ssp-linebf);
-
 					if(sse != 0){
-						//fprint(1, "EOL %d\n", sse-linebf);
-						//fprint(1, "MEMMOVE %d\n", (sse-linebf));
-						//fprint(1, "\n|%s|\n", linebf);
-						write(1, linebf+strlen(prompt), (sse-linebf)-strlen(prompt)+1);
-						memmove(linebf, sse+1, (sizeof linebf)-(sse-linebf)+1);
-						memset(linebf+(sizeof linebf)-(sse-linebf)+1, 0, sse-linebf);
-						//fprint(1, "\n#%s#\n", linebf);
-						bfl += ((sse-linebf) +1);
-						tp += ((sse-linebf) +1);
-						//fprint(1, "SSE bfl: %d tp: %d\n", bfl, tp);
+						write(1, linebf + prc, (sse-linebf) - prc + 1);
+						memmove(linebf, sse+1, LBFS - (sse-linebf) + 1);
+						memset(linebf + LBFS - (sse-linebf) + 1, 0, (sse-linebf));
+						bfl += ((sse-linebf) + 1);
+						tp += ((sse-linebf) + 1);
 					}
 				}
 
-
-			
-
-				//fprint(1, "PRE IF bfl: %d\n", bfl);
+				/* no hit in buffer exception */
 				if(bfl == 0){
-					//fprint(1, "MID IF1 bfl: %d\n", bfl);
 					bfl = LBFS - 1;
-					//fprint(1, "MID IF2 bfl: %d\n", bfl);
-					
-					//fprint(1, "MID IF4 bfl: %d tp: %d\n", bfl, tp);
 					tp += strlen(linebf);
-					//fprint(1, "MID IF4 bfl: %d tp: %d\n", bfl, tp);
 				}
 
+				/* last read (end of data) exception */
 				if((tr+bfl) > tsize){
-					//fprint(1, "MID IF3 bfl: %d tr: %d tsize: %d\n", bfl, tr, tsize);	
 					bfld = bfl;
 					bfl = bfl - ((tr+bfl) - tsize);
-					bfld = bfld - bfl;
-					//memmove(linebf, linebf+((LBFS-1)-bfl), ((LBFS-1)-bfl));
-					////memset(linebf+((LBFS-1)-bfl)+1, 0, bfl-1);	// TODO just for reading		
+					bfld = bfld - bfl;	
 				}
-				//fprint(1, "END tsize: %d bfl: %d tr: %d tp: %d\n", tsize, bfl, tr, tp);
-
-
-
 			}
-
-
-
-
-
-//			long tc;
-//
-//			int lc = 0;
-//			int pc = 0;
-//
-//			int pcx = 0;
-//		
-//			int pco = strlen(prompt) - 3; /* what are the extra characters at the end */
-
-//			for(tc = 0;tc < tsize; tc++){
-//				/* TODO improve - kills itself with syscals and context switches */
-//				read(tfd, &linebf[lc], 1);
-//				if(pcx){
-//					if(linebf[lc] == '\n'){
-//						/* got EOL - cmd line end */
-//						write(1, &linebf[pco+1], lc-pco);
-//						pcx = 0;
-//						pc = 0;
-//						lc = 0;
-//					} else {
-//						lc++;
-//					}
-//				} else {
-//					if(linebf[lc] == prompt[pc]){
-//						lc++;
-//						pc++;
-//						if(pc > pco){
-//							/* got prompt - cmd line beginn */
-//							pcx = 1;
-//						}
-//					} else {
-//						lc = 0;
-//						pc = 0;
-//						pcx = 0;
-//					}
-//				}			
-//			}
-
 			close(tfd);
 		}
 
