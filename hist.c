@@ -4,13 +4,6 @@
 
 static int mod;
 
-enum {
-	Mmod4 = 1<<0,
-	Mctl = 1<<1,
-	Mshift = 1<<2,
-	Malt = 1<<3,
-};
-
 static char* prompt;
 static char* home;
 
@@ -141,18 +134,6 @@ processhist(int hop)
 	close(hfd);
 
 	free(home);
-
-
-/* set aside for parsing prompt - ignore */
-//prompt = getenv("prompt");
-//free(prompt);
-//int pco = strlen(prompt) - 3; /* what are the extra characters at the end */
-//int scr = -1;
-//scr = strncmp(&linebf[lbc+1], prompt, pco);
-//if(scr == 0){
-//	write(2, &linebf[lbc+pco+1+1], sizeof linebf - 1 - 1 - pco - lbc);
-//	fprint(2,"\n");
-//}
 }
 
 
@@ -171,12 +152,8 @@ process(char *s)
 	/* mod key */
 	if(*s == 'k' || *s == 'K'){
 		mod = 0;
-		if(utfrune(s+1, Kmod4) != nil)
-			mod |= Mmod4;
 		if(utfrune(s+1, Kctl) != nil)
-			mod |= Mctl;
-		if(utfrune(s+1, Kshift) != nil)
-			mod |= Mshift;
+			mod = Kctl;
 	}	
 
 	for(p = s+1; *p != 0; p += n){
@@ -191,7 +168,7 @@ process(char *s)
 		
 		/* react to key combinations */
 		skip = 0;
-		if(*s == 'c' && mod == Mctl){
+		if(*s == 'c' && mod == Kctl){
 			if(r == Kup){
 				hop = 1;
 				skip = 1;
