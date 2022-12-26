@@ -2,6 +2,9 @@
 #include <libc.h>
 #include <keyboard.h>
 
+/* processing line buffer size */
+#define LBFS 1024
+
 static int mod;
 
 static char* prompt;
@@ -63,7 +66,7 @@ processhist(int hop)
 
 	int hfd, fr, lbc;
 		
-	char linebf[1024];
+	char linebf[LBFS];
 	char histpath[256];
 	
 	long hc;
@@ -243,7 +246,6 @@ main(int argc, char **argv)
 	/* stand alone segment - print out history */
 
 	if(!isinteractive){
-		#define LBFS 424
 		char linebf[LBFS];
 
 
