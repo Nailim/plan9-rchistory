@@ -18,7 +18,8 @@ cat < {cat $hist && grep -h $prompt(1) /dev/text} | \
 	sed 's/^.*'^$prompt(1)^'//' | \
 	tail -r | \
 	awk '!seen[$0]++' | \
-	tail -r \
+	tail -r | \
+	grep -v '^savehist' \
 	> $temp
 
 	mv $temp $hist
