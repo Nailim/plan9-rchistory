@@ -327,7 +327,9 @@ main(int argc, char **argv)
 
 					sse = strchr(linebf, '\n');
 					if(sse != 0){
-						write(1, linebf + prc, (sse-linebf) - prc + 1);
+						/* print out command without propt + ignore empty lines */
+						if(linebf[prc] != '\n')
+							write(1, linebf + prc, (sse-linebf) - prc + 1);
 						memmove(linebf, sse+1, LBFS - (sse-linebf) + 1);
 						memset(linebf + LBFS - (sse-linebf) + 1, 0, (sse-linebf));
 						bfl += ((sse-linebf) + 1);
