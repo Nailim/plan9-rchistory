@@ -12,6 +12,7 @@ static char* home;
 
 static ulong tsize;
 
+static int hop;
 
 ulong
 textsize(char* fname)
@@ -58,20 +59,18 @@ toprompt(char* text, int len)
 
 
 void
-processhist(int hop)
+processhist(void)
 {
 	/* history operations (hop) legend: */
 	/* >0 - history foreward by x */
 	/* <0 - history backward by x */
 
-	int hfd, fr, lbc;
+	int hfd, fr;
 		
 	char linebf[LBFS];
 	char histpath[256];
 	
 	long hc;
-
-	lbc = sizeof linebf - 1;
 
 
 	/* so far only for global history */
@@ -96,44 +95,62 @@ processhist(int hop)
 
 	/* history foreward */
 	if(hop > 0){
+		int lbc = sizeof linebf - 1;
+
 		for(hc = tsize; hc >= 0; hc--){
 			pread(hfd, &linebf[lbc], 1, hc-1);
+			
 			if(linebf[lbc] == '\n' || hc == 0){
+				tsize = hc - 1;
+
 				if(lbc == sizeof linebf - 1)
 					continue;
 
+				if(hop > 1){
+					hop--;
+					lbc = sizeof linebf - 1;
+					continue;
+				}
+
 				toprompt(&linebf[lbc+1], sizeof linebf - lbc - 1);
-				tsize = hc - 1;
 				break;
 			}	
 			lbc--;
 		}
 	}
 
-	/* history backward */
-	int lc = 0;
-	
+	/* history backward */	
 	if(hop < 0){
+		int lc = 0;
+
 		for(hc = tsize; ; hc++){
 			fr = pread(hfd, &linebf[lc], 1, hc);
 			if(fr == 0){
 				/* no more history, set prompt to empty */
 				toprompt("",0);
+				hop = 0;
 				break;
 			}
 
 			if(linebf[lc] == '\n'){
-				if(lc == 0)
+				tsize = hc + 1;
+
+				if(lc == 0){
 					continue;
+				}
+
+				if(hop < -1){
+					hop++;
+					lc = 0;
+					continue;
+				}
 
 				toprompt(&linebf[0], lc);
-				tsize = hc + 1;
 				break;
 			}
 			lc++;
 		}
 	}
-
 	close(hfd);
 
 	free(home);
@@ -144,13 +161,11 @@ static void
 process(char *s)
 {
 	char b[128], *p;
-	int n, o, skip;
+	int n, o, skip, exec;
 	Rune r;
 
 	o = 0;
 	b[o++] = *s;
-
-	int hop = 0;
 	
 	/* mod key */
 	if(*s == 'k' || *s == 'K'){
@@ -171,27 +186,40 @@ process(char *s)
 		
 		/* react to key combinations */
 		skip = 0;
+		exec = 0;
 		if(*s == 'c' && mod == Kctl){
 			if(r == Kup){
-				hop = 1;
+				if(hop < 0){
+					hop = 2;
+				} else {
+					hop = 1;
+				}
 				skip = 1;
+				exec = 1;
 			}
 			if(r == Kdown){
-				hop = -1;
+				if(hop > 0){
+					hop = -2;
+				} else {
+					hop = -1;
+				}
 				skip = 1;
+				exec = 1;
 			}
-
-			if(hop !=0)
-				processhist(hop);
 		}
+
+		if(exec !=0)
+			processhist();
 
 		/* reset history tracking */
 		if(r == 10){
 			/* enter key */
+			hop = 0;
 			tsize = 0;
 		}
 		if(r == 127){
 			/* delete key */
+			hop = 0;
 			tsize = 0;
 		}
 
@@ -288,14 +316,14 @@ main(int argc, char **argv)
 
 			int prc = strlen(prompt);
 
-			long tr = 0;	// text read
-			long tp = 0;	// text proccesed
+			long tr = 0;	/* text read */
+			long tp = 0;	/* text proccesed */
 
-			char* ssp;		// pointer to prompt
-			char* sse;		// pointer to EOL
+			char* ssp;		/* pointer to prompt */
+			char* sse;		/* pointer to EOL */
 
-			int bfl = LBFS - 1;	// buffer left to read in
-			int bfld = 0;		// buffer diff between moved and remaining space
+			int bfl = LBFS - 1;	/* buffer left to read in */
+			int bfld = 0;		/* buffer diff between moved and remaining space */
 
 			memset(linebf, 0, LBFS);
 
@@ -365,6 +393,8 @@ main(int argc, char **argv)
 
 	char b[128];
 	int i, j, n;
+
+	hop = 0;	/* init history operations tracking */
 
 	for(i = 0;;){
 		if((n = read(0, b+i, sizeof(b)-i)) <= 0)
