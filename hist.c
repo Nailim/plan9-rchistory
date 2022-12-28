@@ -100,10 +100,7 @@ main(int argc, char **argv)
 	if(uselocal){
 		int tfd, rc;
 
-		prompt = getenv("prompt");
-		/* zero out excess characters at the end of prompt variable */
-		#define POFF 2
-		memset(prompt + strlen(prompt) - POFF, 0, POFF);
+		tokenize(getenv("prompt"), &prompt, 1);
 
 		int prc = strlen(prompt);
 
@@ -150,7 +147,7 @@ main(int argc, char **argv)
 				if(sse != 0){
 					/* print out command without propt + ignore empty lines */
 					if(linebf[prc] != '\n')
-						write(1, linebf + prc, (sse-linebf) - prc + 1);
+						write(1, linebf + prc + 1, (sse-linebf) - prc);
 					memmove(linebf, sse+1, LBFS - (sse-linebf) + 1);
 					memset(linebf + LBFS - (sse-linebf) + 1, 0, (sse-linebf));
 					bfl += ((sse-linebf) + 1);
