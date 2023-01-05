@@ -25,12 +25,10 @@ textsize(char* fname)
 
 	/* get current /dev/text size */
 	fd = open(fname, OREAD);
-	for(;;){
+	do{
 		r = read(fd, buf, sizeof buf);
 		sum = sum + r;
-		if(r < sizeof buf)
-			break;
-	}
+	}while(r == sizeof buf);
 	close(fd);
 	
 	return sum;
@@ -83,12 +81,10 @@ main(int argc, char **argv)
 
 		hfd = open(histpath, OREAD);
 		if(hfd > 0){
-			for(;;){
+			do{
 				rc = read(hfd, linebf, sizeof linebf);
 				write(1, linebf, rc);
-				if(rc < sizeof linebf)
-					break;
-			}
+			}while(rc == sizeof linebf);
 			close(hfd);
 		}
 
