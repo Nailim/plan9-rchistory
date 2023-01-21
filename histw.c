@@ -7,12 +7,17 @@
 
 static int mod;
 
-static char* prompt;
-static char* home;
+static int uselocal;
+static int useglobal;
 
+static char* home;
+static char* prompt;
+
+static int tstate;
 static ulong tsize;
 
 static int hop;
+static int hsrc;
 
 ulong
 textsize(char* fname)
@@ -65,6 +70,10 @@ processhist(void)
 	/* >0 - history foreward by x */
 	/* <0 - history backward by x */
 
+	/* history sorce (hsrc) legend: */
+	/* 1 - local history */
+	/* 2 - global hitory */
+//fprint(2, "HSRC %d\n", hsrc);
 	int hfd, fr;
 		
 	char linebf[LBFS];
@@ -72,88 +81,115 @@ processhist(void)
 	
 	long hc;
 
+	/* process local history */
+	if(hsrc == 1){
+		fprint(2, "LOCAL HIST\n");
 
-	/* so far only for global history */
-
-	home = getenv("home");
-
-	memset(histpath, 0, sizeof histpath);
-	strcat(histpath, home);
-	strcat(histpath, "/lib/rchistory");
-
-	/* no history file has been opened yet or we are at the end */
-	if(tsize == 0){
-		tsize = textsize(histpath);
+		/* find current window id */
+		
 	}
-	
-	memset(linebf, 0, sizeof linebf);
 
-	hfd = open(histpath, OREAD);
 
-	if(hfd < 0)
-		exits(nil);
+	/* process global history */
+	//hsrc = 2;
+	if(hsrc == 2){
+//fprint(2, "GLOBAL HIST\n");
+		home = getenv("home");
 
-	/* history foreward */
-	if(hop > 0){
-		int lbc = sizeof linebf - 1;
+		memset(histpath, 0, sizeof histpath);
+		strcat(histpath, home);
+		strcat(histpath, "/lib/rchistory");
 
-		for(hc = tsize; hc >= 0; hc--){
-			pread(hfd, &linebf[lbc], 1, hc-1);
+		/* no history file has been opened yet or we are at the end */
+		if(tstate == 0){
+			tsize = textsize(histpath);
+			tstate = 1;
+		}
+
+		memset(linebf, 0, sizeof linebf);
+
+		hfd = open(histpath, OREAD);
+
+		if(hfd < 0)
+			exits(nil);
+
+		/* history foreward */
+		if(hop > 0){
+			int lbc = sizeof linebf - 1;
+
+			for(hc = tsize; hc >= 0; hc--){
+				pread(hfd, &linebf[lbc], 1, hc-1);
 			
-			if(linebf[lbc] == '\n' || hc == 0){
-				tsize = hc - 1;
+				if(linebf[lbc] == '\n' || hc == 0){
+					if(hc == 0){
+						tsize = 0;
+					}
+					else {
+						tsize = hc - 1;
+					}
 
-				if(lbc == sizeof linebf - 1)
-					continue;
+					if(lbc == sizeof linebf - 1)
+						continue;
 
-				if(hop > 1){
-					hop--;
-					lbc = sizeof linebf - 1;
-					continue;
-				}
+					if(hop > 1){
+						hop--;
+						lbc = sizeof linebf - 1;
+						continue;
+					}
 
-				toprompt(&linebf[lbc+1], sizeof linebf - lbc - 1);
-				break;
-			}	
-			lbc--;
-		}
-	}
-
-	/* history backward */	
-	if(hop < 0){
-		int lc = 0;
-
-		for(hc = tsize; ; hc++){
-			fr = pread(hfd, &linebf[lc], 1, hc);
-			if(fr == 0){
-				/* no more history, set prompt to empty */
-				toprompt("",0);
+					toprompt(&linebf[lbc+1], sizeof linebf - lbc - 1);
+//fprint(2, "GLOBAL HIST - top (to prompt: hc - %d)\n", hc);
+					break;
+				}	
+				lbc--;
+			}
+//fprint(2, "GLOBAL HIST - top (tsize - %d : hc - %d)\n", tsize, hc);
+			/* no more history, set prompt alert */
+			if(tsize == 0 && hc < 0){
+				toprompt("# END OF GLOBAL HISTORY", 23);
 				hop = 0;
-				break;
+				//tsize = 0;
 			}
-
-			if(linebf[lc] == '\n'){
-				tsize = hc + 1;
-
-				if(lc == 0){
-					continue;
-				}
-
-				if(hop < -1){
-					hop++;
-					lc = 0;
-					continue;
-				}
-
-				toprompt(&linebf[0], lc);
-				break;
-			}
-			lc++;
 		}
-	}
-	close(hfd);
+//fprint(2, "GLOBAL HIST - mid (tsize - %d : hc - %d)\n", tsize, hc);
+		/* history backward */	
+		if(hop < 0){
+			int lc = 0;
 
-	free(home);
+			for(hc = tsize; ; hc++){
+				fr = pread(hfd, &linebf[lc], 1, hc);
+				if(fr == 0){
+//fprint(2, "GLOBAL HIST - bottom\n");
+					/* no more history, set prompt to empty */
+					toprompt("",0);
+					hop = 0;
+					break;
+				}
+
+				if(linebf[lc] == '\n'){
+					tsize = hc + 1;
+
+					if(lc == 0){
+						continue;
+					}
+
+					if(hop < -1){
+						hop++;
+						lc = 0;
+						continue;
+					}
+
+					toprompt(&linebf[0], lc);
+					break;
+				}
+//fprint(2, "GLOBAL HIST - bottom (tsize - %d : lc - %d : hc - %d)\n", tsize, lc, hc);
+				lc++;
+			}
+		}
+		close(hfd);
+
+		free(home);
+	}
 }
 
 
@@ -166,7 +202,7 @@ process(char *s)
 
 	o = 0;
 	b[o++] = *s;
-	
+
 	/* mod key */
 	if(*s == 'k' || *s == 'K'){
 		mod = 0;
@@ -208,19 +244,27 @@ process(char *s)
 			}
 		}
 
-		if(exec !=0)
+		if(exec != 0)
 			processhist();
 
-		/* reset history tracking */
+		/* reset history tracking if command entered or canceled */
 		if(r == 10){
 			/* enter key */
 			hop = 0;
-			tsize = 0;
+			//tsize = 0;
+			tstate = 0;
+			hsrc = 1;
+			if(useglobal > uselocal)
+				hsrc = 2;
 		}
 		if(r == 127){
 			/* delete key */
 			hop = 0;
-			tsize = 0;
+			//tsize = 0;
+			tstate = 0;
+			hsrc = 1;
+			if(useglobal > uselocal)
+				hsrc = 2;
 		}
 
 		if(!skip){
@@ -242,14 +286,24 @@ process(char *s)
 static void
 usage(void)
 {
-	fprint(2, "usage: %s\n", argv0);
+	fprint(2, "usage: %s [-g | -G]\n", argv0);
 	exits("usage");
 }
 
 void
 main(int argc, char **argv)
 {
+	uselocal = 1;
+	useglobal = 0;
+
 	ARGBEGIN{
+	case 'g':
+		useglobal = 1;
+		break;
+	case 'G':
+		uselocal = 0;
+		useglobal = 1;
+		break;
 	default:
 		usage();
 	}ARGEND
@@ -259,7 +313,11 @@ main(int argc, char **argv)
 	char b[128];
 	int i, j, n;
 
-	hop = 0;	/* init history operations tracking */
+	/* init history operations tracking */
+	hop = 0;
+	hsrc = 1;
+	if(useglobal > uselocal)
+		hsrc = 2;
 
 	for(i = 0;;){
 		if((n = read(0, b+i, sizeof(b)-i)) <= 0)
