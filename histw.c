@@ -2,8 +2,10 @@
 #include <libc.h>
 #include <keyboard.h>
 
+
 /* processing line buffer size */
 #define LBFS 1024
+
 
 static int mod;
 
@@ -18,6 +20,50 @@ static ulong tsize;
 
 static int hop;
 static int hsrc;
+
+static int pwid;
+
+static int wsysfd;
+
+
+void
+resethstate(void){
+	hop = 0;
+
+	tstate = 0;
+
+	hsrc = 1;
+	if(useglobal > uselocal){
+		hsrc = 2;
+	}
+}
+
+
+int
+readwctl(char *buf, int nbuf, int id)
+{
+	int fd, n;
+	char s[64];
+
+	snprint(s, sizeof(s), "/dev/wsys/%d/wctl", id);
+
+	if((fd = open(s, OREAD)) < 0){
+		buf[0] = 0;
+		return -1;
+	}
+
+	n = read(fd, buf, nbuf-1);
+
+	close(fd);
+
+	if(n < 0){
+		buf[0] = 0;
+		return -1;
+	}
+
+	buf[n] = 0;
+	return n;
+}
 
 ulong
 textsize(char* fname)
@@ -73,7 +119,7 @@ processhist(void)
 	/* history sorce (hsrc) legend: */
 	/* 1 - local history */
 	/* 2 - global hitory */
-//fprint(2, "HSRC %d\n", hsrc);
+fprint(2, "HSRC %d\n", hsrc);
 	int hfd, fr;
 		
 	char linebf[LBFS];
@@ -82,17 +128,61 @@ processhist(void)
 	long hc;
 
 	/* process local history */
-	if(hsrc == 1 && hop != 0){
-//fprint(2, "LOCAL HIST\n");
+	if(uselocal){
+fprint(2, "WIN ID\n");
 
 		/* find current window id */
+		int dsn, dn, wid;
+		Dir *ds, *d;
+		char wctlpath[64], s[256], *t[8];
+
+		wid = 0;
+
+		seek(wsysfd, 0, 0);
+		dsn = dirreadall(wsysfd, &ds);
+fprint(2, "DRALL dsn  %d\n", dsn);
+//!!!
+		for(dn = 0, d = ds; dn < dsn; dn++, d++){
+//fprint(2, "DRALL LOOP name  %d\n", atoi(d->name));
+
+
+			if(readwctl(s, sizeof(s), atoi(d->name)) <= 0){
+fprint(2, "DRALL WCTL READ fail\n");
+				continue;
+			}
+//fprint(2, "DRALL WCTL READ s %s\n", s);
+
+
+			if(tokenize(s, t, nelem(t)) != 6){
+				continue;
+			}
+			
+			if(strcmp(t[4], "current") == 0){
+//fprint(2, "DRALL WCTL CURRENT id %d\n", atoi(d->name));
+				wid = atoi(d->name);
+				break;
+			}
+		}
+
+		if(wid != pwid){
+fprint(2, "DRALL WCTL RESET wid != pwid : %d %d\n", wid, pwid);
+			resethstate();
+			toprompt("", 0);
+			pwid = wid;
+		}
+
+	}
+
+	/* process local history */
+	if(hsrc == 1 && hop != 0){
+fprint(2, "LOCAL HIST\n");
 
 		/* switch to local history if configured */
 		if(useglobal){
 			toprompt("# END OF LOCAL HISTORY", 22);
 			hsrc = 2;
 			hop = 0;
-//fprint(2, "LOCAL HIST - switch global\n");
+fprint(2, "LOCAL HIST - switch global\n");
 		}
 		
 	}
@@ -100,7 +190,7 @@ processhist(void)
 
 	/* process global history */
 	if(hsrc == 2 && hop != 0){
-//fprint(2, "GLOBAL HIST\n");
+fprint(2, "GLOBAL HIST\n");
 		home = getenv("home");
 
 		memset(histpath, 0, sizeof histpath);
@@ -145,19 +235,19 @@ processhist(void)
 					}
 
 					toprompt(&linebf[lbc+1], sizeof linebf - lbc - 1);
-//fprint(2, "GLOBAL HIST - top (to prompt: hc - %d)\n", hc);
+fprint(2, "GLOBAL HIST - top (to prompt: hc - %d)\n", hc);
 					break;
 				}	
 				lbc--;
 			}
-//fprint(2, "GLOBAL HIST - top (tsize - %d : hc - %d)\n", tsize, hc);
+fprint(2, "GLOBAL HIST - top (tsize - %d : hc - %d)\n", tsize, hc);
 			/* no more history, set prompt alert */
 			if(tsize == 0 && hc < 0){
 				toprompt("# END OF GLOBAL HISTORY", 23);
 				hop = 0;
 			}
 		}
-//fprint(2, "GLOBAL HIST - mid (tsize - %d : hc - %d)\n", tsize, hc);
+fprint(2, "GLOBAL HIST - mid (tsize - %d : hc - %d)\n", tsize, hc);
 		/* history backward */	
 		if(hop < 0){
 			int lc = 0;
@@ -165,7 +255,7 @@ processhist(void)
 			for(hc = tsize; ; hc++){
 				fr = pread(hfd, &linebf[lc], 1, hc);
 				if(fr == 0){
-//fprint(2, "GLOBAL HIST - bottom\n");
+fprint(2, "GLOBAL HIST - bottom\n");
 					/* no more history, set prompt to empty */
 					toprompt("", 0);
 					hop = 0;
@@ -174,7 +264,7 @@ processhist(void)
 					if(uselocal){
 						toprompt("# START OF LOCAL HISTORY", 24);
 						hsrc = 1;
-//fprint(2, "GLOBAL HIST - switch local\n");
+fprint(2, "GLOBAL HIST - switch local\n");
 					}
 					break;
 				}
@@ -195,7 +285,7 @@ processhist(void)
 					toprompt(&linebf[0], lc);
 					break;
 				}
-//fprint(2, "GLOBAL HIST - bottom (tsize - %d : lc - %d : hc - %d)\n", tsize, lc, hc);
+fprint(2, "GLOBAL HIST - bottom (tsize - %d : lc - %d : hc - %d)\n", tsize, lc, hc);
 				lc++;
 			}
 		}
@@ -263,21 +353,11 @@ process(char *s)
 		/* reset history tracking if command entered or canceled */
 		if(r == 10){
 			/* enter key */
-			hop = 0;
-			//tsize = 0;
-			tstate = 0;
-			hsrc = 1;
-			if(useglobal > uselocal)
-				hsrc = 2;
+			resethstate();
 		}
 		if(r == 127){
 			/* delete key */
-			hop = 0;
-			//tsize = 0;
-			tstate = 0;
-			hsrc = 1;
-			if(useglobal > uselocal)
-				hsrc = 2;
+			resethstate();
 		}
 
 		if(!skip){
@@ -321,6 +401,7 @@ main(int argc, char **argv)
 		usage();
 	}ARGEND
 
+
 	/* interactive segment - manipulate console promt */
 
 	char b[128];
@@ -328,9 +409,18 @@ main(int argc, char **argv)
 
 	/* init history operations tracking */
 	hop = 0;
+	pwid = 0;
 	hsrc = 1;
-	if(useglobal > uselocal)
+	if(useglobal > uselocal){
 		hsrc = 2;
+	}
+
+	if(uselocal){
+		if((wsysfd = open("/dev/wsys", OREAD)) < 0){
+			sysfatal("%r");
+		}
+	}
+
 
 	for(i = 0;;){
 		if((n = read(0, b+i, sizeof(b)-i)) <= 0)
@@ -347,6 +437,8 @@ main(int argc, char **argv)
 		memmove(b, b+i, j-i);
 		i -= j;
 	}
+
+	close(wsysfd);
 
 	exits(nil);
 }
