@@ -82,17 +82,24 @@ processhist(void)
 	long hc;
 
 	/* process local history */
-	if(hsrc == 1){
-		fprint(2, "LOCAL HIST\n");
+	if(hsrc == 1 && hop != 0){
+//fprint(2, "LOCAL HIST\n");
 
 		/* find current window id */
+
+		/* switch to local history if configured */
+		if(useglobal){
+			toprompt("# END OF LOCAL HISTORY", 22);
+			hsrc = 2;
+			hop = 0;
+//fprint(2, "LOCAL HIST - switch global\n");
+		}
 		
 	}
 
 
 	/* process global history */
-	//hsrc = 2;
-	if(hsrc == 2){
+	if(hsrc == 2 && hop != 0){
 //fprint(2, "GLOBAL HIST\n");
 		home = getenv("home");
 
@@ -148,7 +155,6 @@ processhist(void)
 			if(tsize == 0 && hc < 0){
 				toprompt("# END OF GLOBAL HISTORY", 23);
 				hop = 0;
-				//tsize = 0;
 			}
 		}
 //fprint(2, "GLOBAL HIST - mid (tsize - %d : hc - %d)\n", tsize, hc);
@@ -161,8 +167,15 @@ processhist(void)
 				if(fr == 0){
 //fprint(2, "GLOBAL HIST - bottom\n");
 					/* no more history, set prompt to empty */
-					toprompt("",0);
+					toprompt("", 0);
 					hop = 0;
+
+					/* switch to local history if configured */
+					if(uselocal){
+						toprompt("# START OF LOCAL HISTORY", 24);
+						hsrc = 1;
+//fprint(2, "GLOBAL HIST - switch local\n");
+					}
 					break;
 				}
 
