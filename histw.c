@@ -4,7 +4,7 @@
 
 
 /* processing line buffer size */
-#define LBFS 1024
+#define LBFS 32
 
 
 static int mod;
@@ -16,6 +16,7 @@ static char* home;
 static char* prompt;
 
 static int tstate;
+static ulong tpos;
 static ulong tsize;
 
 static int hop;
@@ -31,6 +32,8 @@ resethstate(void){
 	hop = 0;
 
 	tstate = 0;
+
+	pwid = 0;	// TODO better logic to rest state between windows
 
 	hsrc = 1;
 	if(useglobal > uselocal){
@@ -64,6 +67,7 @@ readwctl(char *buf, int nbuf, int id)
 	buf[n] = 0;
 	return n;
 }
+
 
 ulong
 textsize(char* fname)
@@ -119,7 +123,7 @@ processhist(void)
 	/* history sorce (hsrc) legend: */
 	/* 1 - local history */
 	/* 2 - global hitory */
-fprint(2, "HSRC %d\n", hsrc);
+
 	int hfd, fr;
 		
 	char linebf[LBFS];
@@ -127,45 +131,37 @@ fprint(2, "HSRC %d\n", hsrc);
 	
 	long hc;
 
-	/* process local history */
-	if(uselocal){
-fprint(2, "WIN ID\n");
+	int wid;
 
-		/* find current window id */
-		int dsn, dn, wid;
+
+	/* find current window id */
+	if(uselocal){
+		
+		int dsn, dn;
 		Dir *ds, *d;
-		char wctlpath[64], s[256], *t[8];
+		char s[256], *t[8];
 
 		wid = 0;
 
 		seek(wsysfd, 0, 0);
 		dsn = dirreadall(wsysfd, &ds);
-fprint(2, "DRALL dsn  %d\n", dsn);
-//!!!
+
 		for(dn = 0, d = ds; dn < dsn; dn++, d++){
-//fprint(2, "DRALL LOOP name  %d\n", atoi(d->name));
-
-
 			if(readwctl(s, sizeof(s), atoi(d->name)) <= 0){
-fprint(2, "DRALL WCTL READ fail\n");
 				continue;
 			}
-//fprint(2, "DRALL WCTL READ s %s\n", s);
-
 
 			if(tokenize(s, t, nelem(t)) != 6){
 				continue;
 			}
 			
 			if(strcmp(t[4], "current") == 0){
-//fprint(2, "DRALL WCTL CURRENT id %d\n", atoi(d->name));
 				wid = atoi(d->name);
 				break;
 			}
 		}
 
 		if(wid != pwid){
-fprint(2, "DRALL WCTL RESET wid != pwid : %d %d\n", wid, pwid);
 			resethstate();
 			toprompt("", 0);
 			pwid = wid;
@@ -173,24 +169,296 @@ fprint(2, "DRALL WCTL RESET wid != pwid : %d %d\n", wid, pwid);
 
 	}
 
-	/* process local history */
+	/* process local history from /dev/wsys/%id/text */
 	if(hsrc == 1 && hop != 0){
-fprint(2, "LOCAL HIST\n");
+		int tfd, rc;
 
-		/* switch to local history if configured */
-		if(useglobal){
-			toprompt("# END OF LOCAL HISTORY", 22);
-			hsrc = 2;
-			hop = 0;
-fprint(2, "LOCAL HIST - switch global\n");
+		tokenize(getenv("prompt"), &prompt, 1);
+
+		int prc = strlen(prompt);
+
+		long tr = 0;	/* text read */
+		long tp = 0;	/* text proccesed */
+
+		char* ssp;		/* pointer to prompt */
+		char* sse;		/* pointer to EOL */
+		char* ssee;		/* pointer to sencond last EOL */
+		char* tmpfr;
+
+		int bfl = LBFS - 1;	/* buffer left to read in */
+		int bfld = 0;		/* buffer diff between moved and remaining space */
+
+		memset(linebf, 0, LBFS);
+		memset(histpath, 0, sizeof histpath);
+
+		/* compose full path to local user history */
+		snprint(histpath, sizeof histpath, "/dev/wsys/%d/text", wid);
+
+		/* no history file has been opened yet or we are changing state */
+		if(tstate == 0){
+			if(hop > 0){
+				tpos = textsize(histpath);	/* starting history up */
+			} else {
+				tpos = 0;	/* starting history down */
+			}
+			
+			tsize = textsize(histpath);
+			tstate = 1;
 		}
-		
+
+		tfd = open(histpath, OREAD);
+
+
+		/* history up */
+		if(hop > 0){
+
+			/* first read exception - less text than buffer*/
+			if(bfl > (tsize - (tsize-tpos))){
+				bfl = (tsize - (tsize-tpos));
+				bfld = ((LBFS-1) - bfl);
+			}
+
+			tp = tpos;
+			if(tp != tsize){
+				/* not processing history from the end */
+				tr = tsize - tp;
+			}
+
+
+			/* no more history, set prompt alert */
+			if(tp == 0){
+				toprompt("# END OF LOCAL HISTORY", 22);
+
+				/* switch to global history if configured */
+				if(useglobal){
+					toprompt("# START OF GLOBAL HISTORY", 25);
+					tstate = 0;
+					hsrc = 2;
+					hop = 0;
+				}
+			}
+
+
+			while(tp > 0){
+				rc = pread(tfd, linebf + bfld, bfl, (tsize-tr) - bfl);
+				bfl -= rc;
+				bfld = 0;
+				tr += rc;
+
+
+				/* find prompt */
+				ssp = 0;
+				tmpfr = linebf;
+				do {
+					tmpfr = strstr(tmpfr, prompt);
+					if(tmpfr != 0){
+						ssp = tmpfr;
+						tmpfr = tmpfr + 1;
+					}
+				} while (tmpfr != 0 && tmpfr < (linebf + LBFS - 1));
+
+				/* find newline char */
+				sse = 0;
+				ssee = 0;
+				if(ssp != 0){
+					tmpfr = ssp;
+				} else {
+					tmpfr = linebf;
+				}
+				do {
+					tmpfr = strchr(tmpfr, '\n');
+					if(tmpfr != 0){
+						ssee = sse;
+						sse = tmpfr;
+						if(ssp != 0){
+							break;	/* if prompt is found only next one is needed */
+						}
+						tmpfr = tmpfr + 1;
+					}
+				} while (tmpfr != 0 && tmpfr < (linebf + LBFS - 1));
+
+
+				/* history hit */
+				if((ssp != 0) && (sse != 0)){
+					/* print out command to propt */
+					toprompt(ssp + prc + 1, (sse-ssp) - prc - 1);
+					if((ssp-linebf) == 0){
+						/* nothing to move if prompt is at the beginning of buffer */
+						memset(linebf, 43, (LBFS-1));
+						bfl += (LBFS-1);
+						tp -= (LBFS-1);
+					} else {
+						/* move the rest carefuly */
+						memmove(linebf + (LBFS-1-(ssp-linebf)), linebf, (ssp-linebf));
+						memset(linebf, 45, (LBFS-1-(ssp-linebf)));
+						bfl += (LBFS-1-(ssp-linebf));
+						tp -= (LBFS-1-(ssp-linebf));
+					}
+					tpos = tp;
+					break;
+				}
+
+				/* buffer move - prompt */
+				if((ssp != 0) && (sse == 0)){
+					if((ssp-linebf) == 0){
+						/* nothing to move if prompt is at the beginning of buffer */
+						memset(linebf, 43, (LBFS-1));
+						bfl += (LBFS-1);
+						tp -= (LBFS-1);
+					} else {
+						/* move the rest carefuly */
+						memmove(linebf + (LBFS-1-(ssp-linebf)), linebf, (ssp-linebf));
+						memset(linebf, 45, (LBFS-1-(ssp-linebf)));
+						bfl += (LBFS-1-(ssp-linebf));
+						tp -= (LBFS-1-(ssp-linebf));
+					}
+				}
+
+				/* buffer move - newline */
+				if((ssp == 0) && (sse != 0)){
+					if((sse-linebf) == LBFS-2){
+						/* if newline char is the last char in buffer ... */
+						if (ssee != 0){
+							/* move till second last newline char */
+							memmove(linebf + (LBFS-2-(ssee-linebf)), linebf, (ssee-linebf) + 1);
+							memset(linebf, 64, (LBFS-2-(ssee-linebf)));
+							bfl += (LBFS-2-(ssee-linebf));
+							tp -= (LBFS-2-(ssee-linebf));
+						} else {
+							/* nothing to do but clear whole buffer */
+							memset(linebf, 43, (LBFS-1));
+							bfl += (LBFS-1);
+							tp -= (LBFS-1);
+						}
+					} else {
+						/* move till last newline char */
+						memmove(linebf + (LBFS-2-(sse-linebf)), linebf, (sse-linebf) + 1);
+						memset(linebf, 64, (LBFS-2-(sse-linebf)));
+						bfl += (LBFS-2-(sse-linebf));
+						tp -= (LBFS-2-(sse-linebf));
+					}
+				}
+
+				/* no hit in buffer exception */
+				if((ssp == 0) && (sse == 0)){
+					memset(linebf, 64, (LBFS-1));
+					bfl = (LBFS-1);
+				}
+
+				/* last read (end of data) exception */
+				if((tr+bfl) > tsize){
+					bfld = bfl;
+					bfl = bfl - ((tr+bfl) - tsize);
+					bfld = bfld - bfl;
+				}
+
+				/* tainted history - less to read than detected at start */
+				if((rc == 0) && (bfl != 0)){
+					/* don't know what's going on, set prompt to empty */
+					toprompt("", 0);
+					tp = 0;
+					hop = 0;
+				}
+			}
+		}
+
+
+		/* history down */
+		if(hop < 0){
+
+			/* first read exception - less text than buffer */
+			if(bfl > (tsize - tpos)){
+				bfl = (tsize - tpos);
+				bfld = ((LBFS-1) - bfl);
+			}
+
+			tp = tpos;
+			if(tp != 0){
+				/* not processing history from the beginning */
+				tr = tp;
+			}
+
+			while(tp < tsize){
+				rc = pread(tfd, linebf + ((LBFS-1)-bfl) - bfld,  bfl, tr);
+				bfl -= rc;
+				bfld = 0;
+				tr += rc;
+
+				ssp = strstr(linebf, prompt);
+				if(ssp != 0){
+					if(ssp-linebf > 0){
+						/* align prompt with start of the buffer */
+						memmove(linebf, ssp, LBFS - (ssp-linebf));
+						memset(linebf + LBFS - (ssp-linebf), 0, (ssp-linebf));
+						bfl += ((ssp-linebf));
+						tp += ((ssp-linebf));
+					}
+
+					/* we trust the buffer is long enough for the whole command */
+
+					sse = strchr(linebf, '\n');
+					if(sse != 0){
+						/* print out command to propt */
+						if(linebf[prc] != '\n'){
+							toprompt(linebf + prc + 1, (sse-linebf) - prc - 1);
+							tpos = tp + (sse-linebf) + 1;
+							break;
+						}
+						memmove(linebf, sse+1, LBFS - (sse-linebf) + 1);
+						memset(linebf + LBFS - (sse-linebf) + 1, 0, (sse-linebf));
+						bfl += ((sse-linebf) + 1);
+						tp += ((sse-linebf) + 1);
+					}
+				} else {
+					/* if there is no prompt in buffer */
+					/* move to next new line character instead */
+					sse = strchr(linebf, '\n');
+					if((sse != 0) && ((sse-linebf) < LBFS-2)){
+						memmove(linebf, sse+1, LBFS - (sse-linebf) + 1);
+						memset(linebf + LBFS - (sse-linebf) + 1, 0, (sse-linebf));
+						bfl += ((sse-linebf) + 1);
+						tp += ((sse-linebf) + 1);
+					}
+				}
+
+				/* no hit in buffer exception */
+				if(bfl == 0){
+					bfl += LBFS - 1;
+					tp += strlen(linebf);
+					memset(linebf, 0, (LBFS-1));
+
+					/* no more history, set prompt to empty */
+					toprompt("", 0);
+					hop = 0;
+				}
+
+				/* last read (end of data) exception */
+				if((tr+bfl) > tsize){
+					bfld = bfl;
+					bfl = bfl - ((tr+bfl) - tsize);
+					bfld = bfld - bfl;
+				}
+
+				/* tainted history - less to read than detected at start */
+				if((rc == 0) && (bfl != 0)){
+					/* don't know what's going on, set prompt to empty */
+					toprompt("", 0);
+					tp = tsize;
+					hop = 0;
+				}
+			}
+		}
+
+
+		close(tfd);
+
+		free(prompt);
 	}
 
 
-	/* process global history */
+	/* process global history from $home/lib/rchistory */
 	if(hsrc == 2 && hop != 0){
-fprint(2, "GLOBAL HIST\n");
+
 		home = getenv("home");
 
 		memset(histpath, 0, sizeof histpath);
@@ -199,7 +467,7 @@ fprint(2, "GLOBAL HIST\n");
 
 		/* no history file has been opened yet or we are at the end */
 		if(tstate == 0){
-			tsize = textsize(histpath);
+			tpos = textsize(histpath);
 			tstate = 1;
 		}
 
@@ -210,19 +478,20 @@ fprint(2, "GLOBAL HIST\n");
 		if(hfd < 0)
 			exits(nil);
 
-		/* history foreward */
+
+		/* history up */
 		if(hop > 0){
 			int lbc = sizeof linebf - 1;
 
-			for(hc = tsize; hc >= 0; hc--){
+			for(hc = tpos; hc >= 0; hc--){
 				pread(hfd, &linebf[lbc], 1, hc-1);
 			
 				if(linebf[lbc] == '\n' || hc == 0){
 					if(hc == 0){
-						tsize = 0;
+						tpos = 0;
 					}
 					else {
-						tsize = hc - 1;
+						tpos = hc - 1;
 					}
 
 					if(lbc == sizeof linebf - 1)
@@ -235,27 +504,26 @@ fprint(2, "GLOBAL HIST\n");
 					}
 
 					toprompt(&linebf[lbc+1], sizeof linebf - lbc - 1);
-fprint(2, "GLOBAL HIST - top (to prompt: hc - %d)\n", hc);
 					break;
 				}	
 				lbc--;
 			}
-fprint(2, "GLOBAL HIST - top (tsize - %d : hc - %d)\n", tsize, hc);
+
 			/* no more history, set prompt alert */
-			if(tsize == 0 && hc < 0){
+			if(tpos == 0 && hc < 0){
 				toprompt("# END OF GLOBAL HISTORY", 23);
 				hop = 0;
 			}
 		}
-fprint(2, "GLOBAL HIST - mid (tsize - %d : hc - %d)\n", tsize, hc);
-		/* history backward */	
+
+
+		/* history down */	
 		if(hop < 0){
 			int lc = 0;
 
-			for(hc = tsize; ; hc++){
+			for(hc = tpos; ; hc++){
 				fr = pread(hfd, &linebf[lc], 1, hc);
 				if(fr == 0){
-fprint(2, "GLOBAL HIST - bottom\n");
 					/* no more history, set prompt to empty */
 					toprompt("", 0);
 					hop = 0;
@@ -263,14 +531,14 @@ fprint(2, "GLOBAL HIST - bottom\n");
 					/* switch to local history if configured */
 					if(uselocal){
 						toprompt("# START OF LOCAL HISTORY", 24);
+						tstate = 0;
 						hsrc = 1;
-fprint(2, "GLOBAL HIST - switch local\n");
 					}
 					break;
 				}
 
 				if(linebf[lc] == '\n'){
-					tsize = hc + 1;
+					tpos = hc + 1;
 
 					if(lc == 0){
 						continue;
@@ -285,7 +553,7 @@ fprint(2, "GLOBAL HIST - switch local\n");
 					toprompt(&linebf[0], lc);
 					break;
 				}
-fprint(2, "GLOBAL HIST - bottom (tsize - %d : lc - %d : hc - %d)\n", tsize, lc, hc);
+
 				lc++;
 			}
 		}
@@ -383,6 +651,7 @@ usage(void)
 	exits("usage");
 }
 
+
 void
 main(int argc, char **argv)
 {
@@ -408,12 +677,7 @@ main(int argc, char **argv)
 	int i, j, n;
 
 	/* init history operations tracking */
-	hop = 0;
-	pwid = 0;
-	hsrc = 1;
-	if(useglobal > uselocal){
-		hsrc = 2;
-	}
+	resethstate();
 
 	if(uselocal){
 		if((wsysfd = open("/dev/wsys", OREAD)) < 0){
