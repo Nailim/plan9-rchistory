@@ -118,7 +118,7 @@ main(int argc, char **argv)
 
 		tfd = open("/dev/text", OREAD);
 
-		/* first read exception */
+		/* first read exception - less text than buffer */
 		if(bfl > tsize){
 			bfl = tsize;
 			bfld = ((LBFS-1) - bfl);
@@ -133,11 +133,15 @@ main(int argc, char **argv)
 			ssp = strstr(linebf, prompt);
 			if(ssp != 0){
 				if(ssp-linebf > 0){
+					/* align prompt with start of the buffer */
 					memmove(linebf, ssp, LBFS - (ssp-linebf));
 					memset(linebf + LBFS - (ssp-linebf), 0, (ssp-linebf));
 					bfl += ((ssp-linebf));
 					tp += ((ssp-linebf));
 				}
+
+				/* we trust the buffer is long enough for the whole command */
+
 
 				sse = strchr(linebf, '\n');
 				if(sse != 0){
@@ -149,12 +153,24 @@ main(int argc, char **argv)
 					bfl += ((sse-linebf) + 1);
 					tp += ((sse-linebf) + 1);
 				}
-			}
+			} else {
+					/* if there is no prompt in buffer */
+					/* move to next new line character instead */
+					sse = strchr(linebf, '\n');
+					if((sse != 0) && ((sse-linebf) < LBFS-2)){
+						memmove(linebf, sse+1, LBFS - (sse-linebf) + 1);
+						memset(linebf + LBFS - (sse-linebf) + 1, 0, (sse-linebf));
+						bfl += ((sse-linebf) + 1);
+						tp += ((sse-linebf) + 1);
+					}
+				}
 
 			/* no hit in buffer exception */
 			if(bfl == 0){
 				bfl = LBFS - 1;
 				tp += strlen(linebf);
+				
+				memset(linebf, 0, (LBFS-1));
 			}
 
 			/* last read (end of data) exception */
@@ -163,11 +179,19 @@ main(int argc, char **argv)
 				bfl = bfl - ((tr+bfl) - tsize);
 				bfld = bfld - bfl;	
 			}
-		}
-		close(tfd);
-	}
 
-	free(prompt);
+			/* tainted history - less to read than detected at start */
+			if((rc == 0) && (bfl != 0)){
+				/* don't know what's going oy */
+				tp = tsize;
+			}
+		}
+
+		close(tfd);
+
+		free(prompt);
+
+	}
 
 	exits(nil);
 }
