@@ -49,12 +49,14 @@ For example, create a script srw as *$home/bin/rc/srw* (with riow for pipe examp
 # start riow bind
 
 # set up riow with bar and command history
-</dev/kbdtap riow | histw >/dev/kbdtap |[3] bar -p tl -d 'WW hh:mm:ss'
+</dev/kbdtap hist -g | riow >/dev/kbdtap |[3] bar -p tl -d 'WW hh:mm:ss'
 ```
 
 And then call the script in *$home/bin/rc/riostart* file:
 
 `window srw`
+
+By default interactive mode searces trough history from the current window (local history). Configuring interactive mode to include search trough history saved from all terminal windows (global history) use "-g" flag in start up script. To search only trough global history use "-G" flag.
 
 ## usage
 
@@ -78,7 +80,7 @@ Define a *quit* function to save and exit the current terminal window by definin
 
 Use CTRL + UP or CTRL + DOWN key conbinations to insert previous or next line of history in to the prompt.
 
-> Currently interactive mode only works with global history file in $home/lib/rchistory
+Pressing enter (and running the selected command) or pressing delete (canceling selected command) will reset interactive history to initial state.
 
 ## faq
 
@@ -101,3 +103,7 @@ All in good time.
 ### could this be configured (or developed) better
 
 Most probably. Please tell me how to improve it.
+
+### current issues
+
+Curently, when using interactive mode with local history, fist search trough history will take two presses of CTRL + UP or CTRL + DOWN key conbinations. This is due to detecting current window and resetting state. Yes it can and will be improved.
