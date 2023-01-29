@@ -4,7 +4,7 @@
 
 
 /* processing line buffer size */
-#define LBFS 32
+#define LBFS 1024
 
 
 static int mod;
