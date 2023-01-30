@@ -4,7 +4,7 @@
 
 
 /* processing line buffer size */
-#define LBFS 1024
+#define LBFS 64
 
 
 static int mod;
@@ -188,8 +188,7 @@ processhist(void)
 		int bfl = LBFS - 1;	/* buffer left to read in */
 		int bfld = 0;		/* buffer diff between moved and remaining space */
 
-		memset(linebf, 0, LBFS);
-		memset(histpath, 0, sizeof histpath);
+		memset(histpath, 64, sizeof histpath);
 
 		/* compose full path to local user history */
 		snprint(histpath, sizeof histpath, "/dev/wsys/%d/text", wid);
@@ -211,6 +210,9 @@ processhist(void)
 
 		/* history up */
 		if(hop > 0){
+
+			/* search in reverse MUST NOT have null chars at the beginning */
+			memset(linebf, 64, LBFS);
 
 			/* first read exception - less text than buffer*/
 			if(bfl > (tsize - (tsize-tpos))){
@@ -284,13 +286,13 @@ processhist(void)
 					toprompt(ssp + prc + 1, (sse-ssp) - prc - 1);
 					if((ssp-linebf) == 0){
 						/* nothing to move if prompt is at the beginning of buffer */
-						memset(linebf, 43, (LBFS-1));
+						memset(linebf, 64, (LBFS-1));
 						bfl += (LBFS-1);
 						tp -= (LBFS-1);
 					} else {
 						/* move the rest carefuly */
 						memmove(linebf + (LBFS-1-(ssp-linebf)), linebf, (ssp-linebf));
-						memset(linebf, 45, (LBFS-1-(ssp-linebf)));
+						memset(linebf, 64, (LBFS-1-(ssp-linebf)));
 						bfl += (LBFS-1-(ssp-linebf));
 						tp -= (LBFS-1-(ssp-linebf));
 					}
@@ -302,13 +304,13 @@ processhist(void)
 				if((ssp != 0) && (sse == 0)){
 					if((ssp-linebf) == 0){
 						/* nothing to move if prompt is at the beginning of buffer */
-						memset(linebf, 43, (LBFS-1));
+						memset(linebf, 64, (LBFS-1));
 						bfl += (LBFS-1);
 						tp -= (LBFS-1);
 					} else {
 						/* move the rest carefuly */
 						memmove(linebf + (LBFS-1-(ssp-linebf)), linebf, (ssp-linebf));
-						memset(linebf, 45, (LBFS-1-(ssp-linebf)));
+						memset(linebf, 64, (LBFS-1-(ssp-linebf)));
 						bfl += (LBFS-1-(ssp-linebf));
 						tp -= (LBFS-1-(ssp-linebf));
 					}
@@ -326,7 +328,7 @@ processhist(void)
 							tp -= (LBFS-2-(ssee-linebf));
 						} else {
 							/* nothing to do but clear whole buffer */
-							memset(linebf, 43, (LBFS-1));
+							memset(linebf, 64, (LBFS-1));
 							bfl += (LBFS-1);
 							tp -= (LBFS-1);
 						}
@@ -352,9 +354,15 @@ processhist(void)
 					bfld = bfld - bfl;
 				}
 
-				/* tainted history - less to read than detected at start */
+				/* fail-save's - just in case if don't know what's going on */
 				if((rc == 0) && (bfl != 0)){
-					/* don't know what's going on, set prompt to empty */
+					/* tainted history - less to read than detected at start */
+					toprompt("", 0);
+					tp = 0;
+					hop = 0;
+				}
+				if((rc == 0) && (bfl == 0) && (ssp == sse)){
+					/* tainted buffer - nothing to read or parse */
 					toprompt("", 0);
 					tp = 0;
 					hop = 0;
@@ -365,6 +373,9 @@ processhist(void)
 
 		/* history down */
 		if(hop < 0){
+
+			/* search in reverse MUST have null chars at the end */
+			memset(linebf, 0, LBFS);
 
 			/* first read exception - less text than buffer */
 			if(bfl > (tsize - tpos)){
