@@ -147,9 +147,12 @@ main(int argc, char **argv)
 
 				sse = strchr(linebf, '\n');
 				if(sse != 0){
-					/* print out command without propt + ignore empty lines */
+					/* print out command without propt */
 					if(linebf[prc] != '\n'){
-						write(1, linebf + prc + 1, (sse-linebf) - prc);
+						/* and ignore empty lines */
+						if((sse-linebf) - prc > 1){
+							write(1, linebf + prc + 1, (sse-linebf) - prc);
+						}
 					}
 
 					memmove(linebf, sse+1, LBFS - (sse-linebf) + 1);
