@@ -281,21 +281,19 @@ processhist(void)
 				/* history hit */
 				if((ssp != 0) && (sse != 0)){
 					/* print out command to propt */
-					toprompt(ssp + prc + 1, (sse-ssp) - prc - 1);
-					if((ssp-linebf) == 0){
-						/* nothing to move if prompt is at the beginning of buffer */
-						memset(linebf, 64, (LBFS-1));
-						bfl += (LBFS-1);
-						tp -= (LBFS-1);
-					} else {
-						/* move the rest carefuly */
-						memmove(linebf + (LBFS-1-(ssp-linebf)), linebf, (ssp-linebf));
-						memset(linebf, 64, (LBFS-1-(ssp-linebf)));
-						bfl += (LBFS-1-(ssp-linebf));
-						tp -= (LBFS-1-(ssp-linebf));
+					if((sse-ssp) - prc - 1 > 0){
+						/* ignore empty lines */
+						toprompt(ssp + prc + 1, (sse-ssp) - prc - 1);
+						tpos = tp - (LBFS-1-(ssp-linebf));
+						break;
 					}
-					tpos = tp;
-					break;
+					if((ssp-linebf) != 0){
+						/* move only if there is something to move */
+						memmove(linebf + (LBFS-1-(ssp-linebf)), linebf, (ssp-linebf));
+					}
+					memset(linebf, 64, (LBFS-1-(ssp-linebf)));
+					bfl += (LBFS-1-(ssp-linebf));
+					tp -= (LBFS-1-(ssp-linebf));
 				}
 
 				/* buffer move - prompt */
@@ -409,9 +407,12 @@ processhist(void)
 					if(sse != 0){
 						/* print out command to propt */
 						if(linebf[prc] != '\n'){
-							toprompt(linebf + prc + 1, (sse-linebf) - prc - 1);
-							tpos = tp + (sse-linebf) + 1;
-							break;
+							/* skip empty lines */
+							if((sse-linebf) - prc > 1){
+								toprompt(linebf + prc + 1, (sse-linebf) - prc - 1);
+								tpos = tp + (sse-linebf) + 1;
+								break;
+							}
 						}
 						memmove(linebf, sse+1, LBFS - (sse-linebf) + 1);
 						memset(linebf + LBFS - (sse-linebf) + 1, 0, (sse-linebf));
