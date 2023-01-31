@@ -100,6 +100,12 @@ In short, probably not. This requires some previous knowledge, and by the time t
 
 All in good time.
 
+### searchable history
+
+Maybe. In the mean time, if grepping trough hist output is too much of a hassle add a wrapper function to your profile:
+
+`fn h { if(test $#* '=' 0) hist -G; if not hist -G | grep $* }`
+
 ### could this be configured (or developed) better
 
 Most probably. Please tell me how to improve it.
