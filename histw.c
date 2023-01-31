@@ -22,7 +22,7 @@ static ulong tsize;
 static int hop;
 static int hsrc;
 
-static int pwid;
+static int wwid;
 
 static int wsysfd;
 
@@ -33,7 +33,7 @@ resethstate(void){
 
 	tstate = 0;
 
-	pwid = 0;	// TODO better logic to rest state between windows
+	wwid = 0;	// TODO better logic to rest state between windows
 
 	hsrc = 1;
 	if(useglobal > uselocal){
@@ -132,12 +132,10 @@ processhist(void)
 	
 	long hc;
 
-	int wid;
-
 
 	/* find current window id */
 	if(uselocal){
-		int dsn, dn;
+		int dsn, dn, wid;
 		Dir *ds, *d;
 		char s[256], *t[8];
 
@@ -161,10 +159,10 @@ processhist(void)
 			}
 		}
 
-		if(wid != pwid){
+		if(wid != wwid){
 			resethstate();
 			toprompt("", 0);
-			pwid = wid;
+			wwid = wid;
 		}
 
 	}
@@ -177,8 +175,8 @@ processhist(void)
 
 		int prc = strlen(prompt);
 
-		long tr = 0;	/* text read */
-		long tp = 0;	/* text proccesed */
+		long tr;		/* text read */
+		long tp;		/* text proccesed */
 
 		char *ssp;		/* pointer to prompt */
 		char *sse;		/* pointer to EOL */
@@ -191,7 +189,7 @@ processhist(void)
 		memset(histpath, 0, sizeof histpath);
 
 		/* compose full path to local user history */
-		snprint(histpath, sizeof histpath, "/dev/wsys/%d/text", wid);
+		snprint(histpath, sizeof histpath, "/dev/wsys/%d/text", wwid);
 
 		/* no history file has been opened yet or we are changing state */
 		if(tstate == 0){
@@ -219,6 +217,7 @@ processhist(void)
 				bfld = ((LBFS-1) - bfl);
 			}
 
+			tr = 0;
 			tp = tpos;
 			if(tp != tsize){
 				/* not processing history from the end */
@@ -381,6 +380,7 @@ processhist(void)
 				bfld = ((LBFS-1) - bfl);
 			}
 
+			tr = 0;
 			tp = tpos;
 			if(tp != 0){
 				/* not processing history from the beginning */
