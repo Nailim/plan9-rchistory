@@ -5,6 +5,7 @@
 
 /* processing line buffer size */
 #define LBFS 1024
+#define HPS 512
 
 
 static char *prompt;
@@ -73,7 +74,7 @@ main(int argc, char **argv)
 
 		home = getenv("home");
 		/* compose full path to global user history */
-		char histpath[128];
+		char histpath[HPS];
 		memset(histpath, 0, sizeof histpath);
 		strcat(histpath, home);
 		strcat(histpath, "/lib/rchistory");

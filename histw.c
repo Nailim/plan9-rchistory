@@ -4,8 +4,8 @@
 
 
 /* processing line buffer size */
-#define LBFS 64
-
+#define LBFS 1024
+#define HPS 512
 
 static int mod;
 
@@ -128,7 +128,7 @@ processhist(void)
 	int hfd, fr;
 		
 	char linebf[LBFS];
-	char histpath[256];
+	char histpath[HPS];
 	
 	long hc;
 
@@ -188,7 +188,7 @@ processhist(void)
 		int bfl = LBFS - 1;	/* buffer left to read in */
 		int bfld = 0;		/* buffer diff between moved and remaining space */
 
-		memset(histpath, 64, sizeof histpath);
+		memset(histpath, 0, sizeof histpath);
 
 		/* compose full path to local user history */
 		snprint(histpath, sizeof histpath, "/dev/wsys/%d/text", wid);
