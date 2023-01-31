@@ -12,8 +12,8 @@ static int mod;
 static int uselocal;
 static int useglobal;
 
-static char* home;
-static char* prompt;
+static char *home;
+static char *prompt;
 
 static int tstate;
 static ulong tpos;
@@ -70,7 +70,7 @@ readwctl(char *buf, int nbuf, int id)
 
 
 ulong
-textsize(char* fname)
+textsize(char *fname)
 {
 	/* read text file insted of using file stats */
 	/* some files like /dev/text have size 0 since they are generated */
@@ -85,8 +85,9 @@ textsize(char* fname)
 	for(;;){
 		r = read(fd, buf, sizeof buf);
 		sum = sum + r;
-		if(r < sizeof buf)
+		if(r < sizeof buf){
 			break;
+		}
 	}
 	close(fd);
 	
@@ -95,7 +96,7 @@ textsize(char* fname)
 
 
 void
-toprompt(char* text, int len)
+toprompt(char *text, int len)
 {
 	int kfd;
 	char ctlbf[8];
@@ -136,7 +137,6 @@ processhist(void)
 
 	/* find current window id */
 	if(uselocal){
-		
 		int dsn, dn;
 		Dir *ds, *d;
 		char s[256], *t[8];
@@ -180,10 +180,10 @@ processhist(void)
 		long tr = 0;	/* text read */
 		long tp = 0;	/* text proccesed */
 
-		char* ssp;		/* pointer to prompt */
-		char* sse;		/* pointer to EOL */
-		char* ssee;		/* pointer to sencond last EOL */
-		char* tmpfr;
+		char *ssp;		/* pointer to prompt */
+		char *sse;		/* pointer to EOL */
+		char *ssee;		/* pointer to sencond last EOL */
+		char *tmpfr;
 
 		int bfl = LBFS - 1;	/* buffer left to read in */
 		int bfld = 0;		/* buffer diff between moved and remaining space */
@@ -210,7 +210,6 @@ processhist(void)
 
 		/* history up */
 		if(hop > 0){
-
 			/* search in reverse MUST NOT have null chars at the beginning */
 			memset(linebf, 64, LBFS);
 
@@ -373,7 +372,6 @@ processhist(void)
 
 		/* history down */
 		if(hop < 0){
-
 			/* search in reverse MUST have null chars at the end */
 			memset(linebf, 0, LBFS);
 
@@ -486,8 +484,9 @@ processhist(void)
 
 		hfd = open(histpath, OREAD);
 
-		if(hfd < 0)
+		if(hfd < 0){
 			exits(nil);
+		}
 
 
 		/* history up */
@@ -505,8 +504,9 @@ processhist(void)
 						tpos = hc - 1;
 					}
 
-					if(lbc == sizeof linebf - 1)
+					if(lbc == sizeof linebf - 1){
 						continue;
+					}
 
 					if(hop > 1){
 						hop--;
@@ -588,8 +588,9 @@ process(char *s)
 	/* mod key */
 	if(*s == 'k' || *s == 'K'){
 		mod = 0;
-		if(utfrune(s+1, Kctl) != nil)
+		if(utfrune(s+1, Kctl) != nil){
 			mod = Kctl;
+		}
 	}	
 
 	for(p = s+1; *p != 0; p += n){
@@ -626,8 +627,9 @@ process(char *s)
 			}
 		}
 
-		if(exec != 0)
+		if(exec != 0){
 			processhist();
+		}
 
 		/* reset history tracking if command entered or canceled */
 		if(r == 10){
@@ -646,12 +648,14 @@ process(char *s)
 	}
 
 	/* all runes filtered out - ignore completely */
-	if(o == 1 && p-s > 1)
+	if(o == 1 && p-s > 1){
 		return;
+	}
 
 	b[o++] = 0;
-	if(write(1, b, o) != o)
+	if(write(1, b, o) != o){
 		exits(nil);
+	}
 }
 
 
@@ -698,8 +702,9 @@ main(int argc, char **argv)
 
 
 	for(i = 0;;){
-		if((n = read(0, b+i, sizeof(b)-i)) <= 0)
+		if((n = read(0, b+i, sizeof(b)-i)) <= 0){
 			break;
+		}
 		n += i;
 
 		for(j = 0; j < n; j++){

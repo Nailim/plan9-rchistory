@@ -2,18 +2,19 @@
 #include <libc.h>
 #include <keyboard.h>
 
+
 /* processing line buffer size */
 #define LBFS 1024
 
 
-static char* prompt;
-static char* home;
+static char *prompt;
+static char *home;
 
 static ulong tsize;
 
 
 ulong
-textsize(char* fname)
+textsize(char *fname)
 {
 	/* read text file insted of using file stats */
 	/* some files like /dev/text have size 0 since they are generated */
@@ -103,8 +104,8 @@ main(int argc, char **argv)
 		long tr = 0;	/* text read */
 		long tp = 0;	/* text proccesed */
 
-		char* ssp;		/* pointer to prompt */
-		char* sse;		/* pointer to EOL */
+		char *ssp;		/* pointer to prompt */
+		char *sse;		/* pointer to EOL */
 
 		int bfl = LBFS - 1;	/* buffer left to read in */
 		int bfld = 0;		/* buffer diff between moved and remaining space */
@@ -146,8 +147,10 @@ main(int argc, char **argv)
 				sse = strchr(linebf, '\n');
 				if(sse != 0){
 					/* print out command without propt + ignore empty lines */
-					if(linebf[prc] != '\n')
+					if(linebf[prc] != '\n'){
 						write(1, linebf + prc + 1, (sse-linebf) - prc);
+					}
+
 					memmove(linebf, sse+1, LBFS - (sse-linebf) + 1);
 					memset(linebf + LBFS - (sse-linebf) + 1, 0, (sse-linebf));
 					bfl += ((sse-linebf) + 1);
