@@ -280,12 +280,15 @@ processhist(void)
 
 				/* history hit */
 				if((ssp != 0) && (sse != 0)){
-					/* print out command to propt */
-					if((sse-ssp) - prc - 1 > 0){
-						/* ignore empty lines */
-						toprompt(ssp + prc + 1, (sse-ssp) - prc - 1);
-						tpos = tp - (LBFS-1-(ssp-linebf));
-						break;
+					/* command to propt */
+					if(*(ssp - 1) == '\n' || *(ssp - 1) == '@' || ssp == linebf){
+						/* if prompt is found and is behing newline char or start of buffer */
+						if((sse-ssp) - prc - 1 > 0){
+							/* and ignore empty lines */
+							toprompt(ssp + prc + 1, (sse-ssp) - prc - 1);
+							tpos = tp - (LBFS-1-(ssp-linebf));
+							break;
+						}
 					}
 					if((ssp-linebf) != 0){
 						/* move only if there is something to move */
@@ -392,7 +395,8 @@ processhist(void)
 				tr += rc;
 
 				ssp = strstr(linebf, prompt);
-				if(ssp != 0){
+				if(ssp != 0 && (*(ssp - 1) == '\n' || ssp == linebf)){
+					/* if prompt is found and is behing newline char or start of buffer */
 					if(ssp-linebf > 0){
 						/* align prompt with start of the buffer */
 						memmove(linebf, ssp, LBFS - (ssp-linebf));
