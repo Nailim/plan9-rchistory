@@ -133,17 +133,17 @@ main(int argc, char **argv)
 			tr += rc;
 
 			ssp = strstr(linebf, prompt);
-			if(ssp != 0){
+			if((ssp != 0) && (*(ssp - 1) == '\n' || ssp == linebf)){
+				/* if prompt is found and is behing newline char or start of buffer */
 				if(ssp-linebf > 0){
 					/* align prompt with start of the buffer */
 					memmove(linebf, ssp, LBFS - (ssp-linebf));
 					memset(linebf + LBFS - (ssp-linebf), 0, (ssp-linebf));
-					bfl += ((ssp-linebf));
-					tp += ((ssp-linebf));
+					bfl += (ssp-linebf);
+					tp += (ssp-linebf);
 				}
 
 				/* we trust the buffer is long enough for the whole command */
-
 
 				sse = strchr(linebf, '\n');
 				if(sse != 0){
@@ -161,16 +161,16 @@ main(int argc, char **argv)
 					tp += ((sse-linebf) + 1);
 				}
 			} else {
-					/* if there is no prompt in buffer */
-					/* move to next new line character instead */
-					sse = strchr(linebf, '\n');
-					if((sse != 0) && ((sse-linebf) < LBFS-2)){
-						memmove(linebf, sse+1, LBFS - (sse-linebf) + 1);
-						memset(linebf + LBFS - (sse-linebf) + 1, 0, (sse-linebf));
-						bfl += ((sse-linebf) + 1);
-						tp += ((sse-linebf) + 1);
-					}
+				/* if there is no prompt in buffer */
+				/* move to next new line character instead */
+				sse = strchr(linebf, '\n');
+				if((sse != 0) && ((sse-linebf) < LBFS-2)){
+					memmove(linebf, sse+1, LBFS - (sse-linebf) + 1);
+					memset(linebf + LBFS - (sse-linebf) + 1, 0, (sse-linebf));
+					bfl += ((sse-linebf) + 1);
+					tp += ((sse-linebf) + 1);
 				}
+			}
 
 			/* no hit in buffer exception */
 			if(bfl == 0){
