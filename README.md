@@ -112,4 +112,4 @@ Most probably. Please tell me how to improve it.
 
 ### current issues
 
-Curently, when using interactive mode with local history, fist search trough history will take two presses of CTRL + UP or CTRL + DOWN key conbinations. This is due to detecting current window and resetting state. Yes it can and will be improved.
+Most probably. Please find some and let me know.
