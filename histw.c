@@ -29,8 +29,6 @@ static int wsysfd;
 
 void
 resethstate(void){
-	hop = 0;
-
 	tstate = 0;
 
 	wwid = 0;	// TODO better logic to rest state between windows
@@ -636,13 +634,15 @@ process(char *s)
 			processhist();
 		}
 
-		/* reset history tracking if command entered or canceled */
+		/* reset history tracking and state if command entered or canceled */
 		if(r == 10){
 			/* enter key */
+			hop = 0;
 			resethstate();
 		}
 		if(r == 127){
 			/* delete key */
+			hop = 0;
 			resethstate();
 		}
 
@@ -696,7 +696,8 @@ main(int argc, char **argv)
 	char b[128];
 	int i, j, n;
 
-	/* init history operations tracking */
+	/* init history operations tracking and state */
+	hop = 0;
 	resethstate();
 
 	if(uselocal){
