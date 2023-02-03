@@ -31,7 +31,7 @@ void
 resethstate(void){
 	tstate = 0;
 
-	wwid = 0;	// TODO better logic to rest state between windows
+	wwid = 0;
 
 	hsrc = 1;
 	if(useglobal > uselocal){
@@ -164,7 +164,6 @@ processhist(void)
 		}
 
 	}
-
 	/* process local history from /dev/wsys/%id/text */
 	if(hsrc == 1 && hop != 0){
 		int tfd, rc;
@@ -284,7 +283,7 @@ processhist(void)
 						if((sse-ssp) - prc - 1 > 0){
 							/* and ignore empty lines */
 							toprompt(ssp + prc + 1, (sse-ssp) - prc - 1);
-							tpos = tp - (LBFS-1-(ssp-linebf));
+							tp -= (LBFS-1-(ssp-linebf));
 							break;
 						}
 					}
@@ -365,6 +364,7 @@ processhist(void)
 					hop = 0;
 				}
 			}
+			tpos = tp; /* mark where we stopped */
 		}
 
 
@@ -412,7 +412,7 @@ processhist(void)
 							/* skip empty lines */
 							if((sse-linebf) - prc > 1){
 								toprompt(linebf + prc + 1, (sse-linebf) - prc - 1);
-								tpos = tp + (sse-linebf) + 1;
+								tp += (sse-linebf) + 1;
 								break;
 							}
 						}
@@ -459,6 +459,7 @@ processhist(void)
 					hop = 0;
 				}
 			}
+			tpos = tp; /* mark where we stopped */
 		}
 
 
