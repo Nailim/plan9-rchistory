@@ -102,8 +102,8 @@ main(int argc, char **argv)
 
 		int prc = strlen(prompt);
 
-		long tr = 0;	/* text read */
-		long tp = 0;	/* text proccesed */
+		ulong tr = 0;	/* text read */
+		ulong tp = 0;	/* text proccesed */
 
 		char *ssp;		/* pointer to prompt */
 		char *sse;		/* pointer to EOL */

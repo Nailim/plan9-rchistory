@@ -174,8 +174,8 @@ processhist(void)
 
 		int prc = strlen(prompt);
 
-		long tr;		/* text read */
-		long tp;		/* text proccesed */
+		ulong tr;		/* text read */
+		ulong tp;		/* text proccesed */
 
 		char *ssp;		/* pointer to prompt */
 		char *sse;		/* pointer to EOL */
@@ -289,7 +289,11 @@ processhist(void)
 							} else {
 								/* command to propt */
 								toprompt(ssp + prc + 1, (sse-ssp) - prc - 1);
-								tp -= (LBFS-1-(ssp-linebf));
+								if(tp < (LBFS-1-(ssp-linebf))){
+									tp = 0;
+								} else {
+									tp -= (LBFS-1-(ssp-linebf));
+								}
 								break;
 							}
 						}
@@ -300,7 +304,11 @@ processhist(void)
 					}
 					memset(linebf, 64, (LBFS-1-(ssp-linebf)));
 					bfl += (LBFS-1-(ssp-linebf));
-					tp -= (LBFS-1-(ssp-linebf));
+					if(tp < (LBFS-1-(ssp-linebf))){
+						tp = 0;
+					} else {
+						tp -= (LBFS-1-(ssp-linebf));
+					}
 				}
 
 				/* buffer move - prompt */
@@ -309,13 +317,21 @@ processhist(void)
 						/* nothing to move if prompt is at the beginning of buffer */
 						memset(linebf, 64, (LBFS-1));
 						bfl += (LBFS-1);
-						tp -= (LBFS-1);
+						if(tp < (LBFS-1)){
+							tp = 0;
+						} else {
+							tp -= (LBFS-1);
+						}
 					} else {
 						/* move the rest carefuly */
 						memmove(linebf + (LBFS-1-(ssp-linebf)), linebf, (ssp-linebf));
 						memset(linebf, 64, (LBFS-1-(ssp-linebf)));
 						bfl += (LBFS-1-(ssp-linebf));
-						tp -= (LBFS-1-(ssp-linebf));
+						if(tp < (LBFS-1-(ssp-linebf))){
+							tp = 0;
+						} else {
+							tp -= (LBFS-1-(ssp-linebf));
+						}
 					}
 				}
 
@@ -328,19 +344,31 @@ processhist(void)
 							memmove(linebf + (LBFS-2-(ssee-linebf)), linebf, (ssee-linebf) + 1);
 							memset(linebf, 64, (LBFS-2-(ssee-linebf)));
 							bfl += (LBFS-2-(ssee-linebf));
-							tp -= (LBFS-2-(ssee-linebf));
+							if(tp < (LBFS-2-(ssee-linebf))){
+								tp = 0;
+							} else {
+								tp -= (LBFS-2-(ssee-linebf));
+							}
 						} else {
 							/* nothing to do but clear whole buffer */
 							memset(linebf, 64, (LBFS-1));
 							bfl += (LBFS-1);
-							tp -= (LBFS-1);
+							if(tp < (LBFS-1)){
+								tp = 0;
+							} else {
+								tp -= (LBFS-1);
+							}
 						}
 					} else {
 						/* move till last newline char */
 						memmove(linebf + (LBFS-2-(sse-linebf)), linebf, (sse-linebf) + 1);
 						memset(linebf, 64, (LBFS-2-(sse-linebf)));
 						bfl += (LBFS-2-(sse-linebf));
-						tp -= (LBFS-2-(sse-linebf));
+						if(tp < (LBFS-2-(sse-linebf))){
+							tp = 0;
+						} else {
+							tp -= (LBFS-2-(sse-linebf));
+						}
 					}
 				}
 
