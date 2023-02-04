@@ -1,7 +1,7 @@
 </$objtype/mkfile
 
-RC=$home/bin/rc
-BIN=$home/bin/$objtype
+RC=/rc/bin
+BIN=/$objtype/bin
 
 ALL=hist histw
 
@@ -27,8 +27,16 @@ install:V:
 	mv hist $BIN/
 	mv histw $BIN/
 	cp savehist $RC/
+	
+	rm -f $home/bin/$objtype/hist
+	rm -f $home/bin/$objtype/histw
+	rm -f $home/bin/rc/savehist
 
 uninstall:V:
 	rm -f $BIN/hist
 	rm -f $BIN/histw
 	rm -f $RC/savehist
+	
+	rm -f $home/bin/$objtype/hist
+	rm -f $home/bin/$objtype/histw
+	rm -f $home/bin/rc/savehist
