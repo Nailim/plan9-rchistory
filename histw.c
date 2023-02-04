@@ -164,6 +164,8 @@ processhist(void)
 		}
 
 	}
+
+
 	/* process local history from /dev/wsys/%id/text */
 	if(hsrc == 1 && hop != 0){
 		int tfd, rc;
@@ -277,14 +279,19 @@ processhist(void)
 
 				/* history hit */
 				if((ssp != 0) && (sse != 0)){
-					/* command to propt */
+					/* if prompt is found and is behing newline char or start of buffer */
 					if(*(ssp - 1) == '\n' || *(ssp - 1) == '@' || ssp == linebf){
-						/* if prompt is found and is behing newline char or start of buffer */
+						/* and ignore empty lines */
 						if((sse-ssp) - prc - 1 > 0){
-							/* and ignore empty lines */
-							toprompt(ssp + prc + 1, (sse-ssp) - prc - 1);
-							tp -= (LBFS-1-(ssp-linebf));
-							break;
+							/* skip displaying same command on direction change */
+							if(hop > 1){
+								hop--;
+							} else {
+								/* command to propt */
+								toprompt(ssp + prc + 1, (sse-ssp) - prc - 1);
+								tp -= (LBFS-1-(ssp-linebf));
+								break;
+							}
 						}
 					}
 					if((ssp-linebf) != 0){
@@ -407,13 +414,18 @@ processhist(void)
 
 					sse = strchr(linebf, '\n');
 					if(sse != 0){
-						/* print out command to propt */
+						/* skip empty lines */
 						if(linebf[prc] != '\n'){
-							/* skip empty lines */
+							/* skip displaying same command on direction change */
 							if((sse-linebf) - prc > 1){
-								toprompt(linebf + prc + 1, (sse-linebf) - prc - 1);
-								tp += (sse-linebf) + 1;
-								break;
+								if(hop < -1){
+									hop++;
+								} else {
+									/* print out command to propt */
+									toprompt(linebf + prc + 1, (sse-linebf) - prc - 1);
+									tp += (sse-linebf) + 1;
+									break;
+								}
 							}
 						}
 						memmove(linebf, sse+1, LBFS - (sse-linebf) + 1);
