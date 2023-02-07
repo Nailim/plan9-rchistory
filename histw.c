@@ -185,10 +185,10 @@ processhist(void)
 		int bfl = LBFS - 1;	/* buffer left to read in */
 		int bfld = 0;		/* buffer diff between moved and remaining space */
 
-		memset(histpath, 0, sizeof histpath);
+		memset(histpath, 0, HPS);
 
 		/* compose full path to local user history */
-		snprint(histpath, sizeof histpath, "/dev/wsys/%d/text", wwid);
+		snprint(histpath, HPS, "/dev/wsys/%d/text", wwid);
 
 		/* no history file has been opened yet or we are changing state */
 		if(tstate == 0){
@@ -248,13 +248,13 @@ processhist(void)
 				/* find prompt */
 				ssp = 0;
 				tmpfr = linebf;
-				do {
+				do{
 					tmpfr = strstr(tmpfr, prompt);
 					if(tmpfr != 0){
 						ssp = tmpfr;
 						tmpfr = tmpfr + 1;
 					}
-				} while (tmpfr != 0 && tmpfr < (linebf + LBFS - 1));
+				} while(tmpfr != 0 && tmpfr < (linebf + LBFS - 1));
 
 				/* find newline char */
 				sse = 0;
@@ -264,7 +264,7 @@ processhist(void)
 				} else {
 					tmpfr = linebf;
 				}
-				do {
+				do{
 					tmpfr = strchr(tmpfr, '\n');
 					if(tmpfr != 0){
 						ssee = sse;
@@ -274,7 +274,7 @@ processhist(void)
 						}
 						tmpfr = tmpfr + 1;
 					}
-				} while (tmpfr != 0 && tmpfr < (linebf + LBFS - 1));
+				} while(tmpfr != 0 && tmpfr < (linebf + LBFS - 1));
 
 
 				/* history hit */
@@ -514,7 +514,7 @@ processhist(void)
 
 		home = getenv("home");
 
-		memset(histpath, 0, sizeof histpath);
+		memset(histpath, 0, HPS);
 		strcat(histpath, home);
 		strcat(histpath, "/lib/rchistory");
 
@@ -524,7 +524,7 @@ processhist(void)
 			tstate = 1;
 		}
 
-		memset(linebf, 0, sizeof linebf);
+		memset(linebf, 0, LBFS);
 
 		hfd = open(histpath, OREAD);
 
@@ -535,10 +535,10 @@ processhist(void)
 
 		/* history up */
 		if(hop > 0){
-			int lbc = sizeof linebf - 1;
+			int lbc = LBFS - 1;
 
 			for(hc = tpos; hc >= 0; hc--){
-				pread(hfd, &linebf[lbc], 1, hc-1);
+				pread(hfd, linebf+lbc, 1, hc-1);
 			
 				if(linebf[lbc] == '\n' || hc == 0){
 					if(hc == 0){
@@ -548,17 +548,17 @@ processhist(void)
 						tpos = hc - 1;
 					}
 
-					if(lbc == sizeof linebf - 1){
+					if(lbc == LBFS - 1){
 						continue;
 					}
 
 					if(hop > 1){
 						hop--;
-						lbc = sizeof linebf - 1;
+						lbc = LBFS - 1;
 						continue;
 					}
 
-					toprompt(&linebf[lbc+1], sizeof linebf - lbc - 1);
+					toprompt(linebf+lbc+1, LBFS - lbc - 1);
 					break;
 				}	
 				lbc--;
@@ -577,7 +577,7 @@ processhist(void)
 			int lc = 0;
 
 			for(hc = tpos; ; hc++){
-				fr = pread(hfd, &linebf[lc], 1, hc);
+				fr = pread(hfd, linebf+lc, 1, hc);
 				if(fr == 0){
 					/* no more history, set prompt to empty */
 					toprompt("", 0);
@@ -605,7 +605,7 @@ processhist(void)
 						continue;
 					}
 
-					toprompt(&linebf[0], lc);
+					toprompt(linebf, lc);
 					break;
 				}
 
