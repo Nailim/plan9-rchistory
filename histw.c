@@ -96,17 +96,35 @@ textsize(char *fname)
 void
 toprompt(char *text, int len)
 {
-	int kfd;
-	char ctlbf[8];
+	#define CHUNKSIZE 64
+
+	int kfd, chunk, offset;
+	char ctlbf[4];
 
 	ctlbf[0] = 2;	/* STX (ctrl+b) - move cursor to prompt */
 	ctlbf[1] = 5;	/* ENQ (ctrl+e) - move cursor to end of text in promt */
 	ctlbf[2] = 21;	/* NAK (ctrl+u) - delete everything behind cursor */
+	ctlbf[3] = 0;	/* NULL - everything should be null terminted just in case */
 
 	kfd = open("/dev/kbdin", OWRITE);
 
+	/* clear prompt */
 	write(kfd, ctlbf, 3);
-	write(kfd, text, len);
+
+	if(len > 0){
+		offset = 0;
+		do{
+			if(len > CHUNKSIZE){
+				chunk = CHUNKSIZE;
+				len -= CHUNKSIZE;
+			} else {
+				chunk = len;
+				len = 0;
+			}
+			write(kfd, text+offset, chunk);
+			offset += chunk;
+		} while(len > 0);
+	}
 
 	close(kfd);
 }
