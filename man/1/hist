@@ -1,0 +1,46 @@
+.TH HIST 1
+.SH NAME
+hist \- list command history from rc(1)
+.SH SYNOPSIS
+.B hist
+[
+.I -g | -G
+]
+.SH DESCRIPTION
+.I hist
+parses and prints out command history of
+.IR rc (1) .
+.TP
+It sources command history from two locations:
+.TP
+LOCAL history \- parsed directly from current terminal at
+.IR /dev/text .
+.TP
+GLOBAL history \- parsed from list of commands stored in
+.I $home/lib/rchistory
+which can be generted by savehist command (see \fIsavehist\fR(1)) or created manualy.
+.TP
+Source of command history used can be configured trough flags:
+.TP
+Without flags only LOCAL history will be used.
+.TP
+With -g flag both LOCAL and GLOBAL history will be used.
+.TP
+With -G flag only GLOBAL history will be used.
+.SS Running
+Run hist command with appropriate flag. Output can be piped as any other.
+.PP
+Example of defining a custom function with
+.I hist
+to grep the output of GLOBAL history only with provided string:
+.EX
+	fn h { if(test $#* '=' 0) hist -G; if not hist -G | grep $* }
+.EE
+Place in user profile or appropriate.
+.SH SOURCE
+https://github.com/Nailim/plan9-rchistory
+.SH SEE ALSO
+.IR histw (1),
+.IR savehist (1)
+.SH BUGS
+Find and report them please.

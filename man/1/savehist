@@ -1,0 +1,33 @@
+.TH SAVEHIST 1
+.SH NAME
+savehist \- pasrse and save commands from rc(1)
+.SH SYNOPSIS
+.B savehist
+.SH DESCRIPTION
+.I savehist
+parses, sorts, synchronizes and saves command history of
+.IR rc (1)
+to $home/lib/rchistory.
+.TP
+Commands from the current terminal session are processed
+and appended to the GLOBAL history file.
+.TP
+GLOBAL history file ($home/lib/rchistory) can be edited
+by hand, the format consists of "text\\n".
+.SS Running
+Run savehist command to save commands from the current terminal session.
+.PP
+Example of defining a custom function with
+.I savehist
+to save command history of current rc session (and close te window under rio(1)):
+.EX
+	fn quit { savehist; exit }
+.EE
+Place in user profile or appropriate.
+.SH SOURCE
+https://github.com/Nailim/plan9-rchistory
+.SH SEE ALSO
+.IR hist (1),
+.IR histw (1)
+.SH BUGS
+Find and report them please.

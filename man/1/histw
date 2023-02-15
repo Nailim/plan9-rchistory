@@ -1,0 +1,72 @@
+.TH HISTW 1
+.SH NAME
+histw \- keyboard-controller for rc(1)
+.SH SYNOPSIS
+.B histw
+[
+.I -g | -G
+]
+.SH DESCRIPTION
+.I histw
+provides keyboard controll for browsing trough command history of
+.IR rc (1)
+under
+.IR rio (1)
+in the manner of
+.IR bash ,
+.I zhs
+or similar. It does so by working with
+.I /dev/kbdtap
+(see \fIrio\fR(4)),
+.I /dev/kbdin and
+.IR /dev/wsys .
+.TP
+It sources command history from two locations:
+.TP
+LOCAL history \- parsed directly from current window at
+.IR /dev/wsys/id/text .
+.TP
+GLOBAL history \- parsed from list of commands stored in
+.I $home/lib/rchistory
+which can be generted by savehist command (see \fIsavehist\fR(1)) or created manualy.
+.TP
+Source of command history used can be configured trough flags:
+.TP
+Without flags only LOCAL history will be used.
+.TP
+With -g flag both LOCAL and GLOBAL history will be used.
+.TP
+With -G flag only GLOBAL history will be used.
+.SS Running
+Place in riostart or appropriate.
+.PP
+Example of running
+.I histw
+by itself for LOCAL history only:
+.EX
+	</dev/kbdtap histw >/dev/kbdtap
+.EE
+.PP
+Example of running
+.I histw
+for LOCAL and GLOBAL history with other programs handling input:
+.EX
+	</dev/kbdtap ktrans | \\
+		reform/shortcuts | \\
+		histw -g | \\
+		riow >/dev/kbdtap |[3] bar
+.EE
+.SS Keyboard shortcuts
+.TP
+.B CTRL+UP
+Parse and insert previous command as the rc input.
+.TP
+.B CTRL+DOWN
+Parse and insert next command as the rc input.
+.SH SOURCE
+https://github.com/Nailim/plan9-rchistory
+.SH SEE ALSO
+.IR hist (1),
+.IR savehist (1)
+.SH BUGS
+Find and report them please.

@@ -2,6 +2,7 @@
 
 RC=/rc/bin
 BIN=/$objtype/bin
+MAN=/sys/man
 
 ALL=hist histw
 
@@ -28,6 +29,10 @@ install:V:
 	mv histw $BIN/
 	cp savehist $RC/
 	
+	cp man/1/hist $MAN/1/
+	cp man/1/histw $MAN/1/
+	cp man/1/savehist $MAN/1/
+	
 	rm -f $home/bin/$objtype/hist
 	rm -f $home/bin/$objtype/histw
 	rm -f $home/bin/rc/savehist
@@ -36,6 +41,10 @@ uninstall:V:
 	rm -f $BIN/hist
 	rm -f $BIN/histw
 	rm -f $RC/savehist
+	
+	rm -f $MAN/1/hist
+	rm -f $MAN/1/histw
+	rm -f $MAN/1/savehist
 	
 	rm -f $home/bin/$objtype/hist
 	rm -f $home/bin/$objtype/histw
