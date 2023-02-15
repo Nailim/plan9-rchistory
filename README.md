@@ -96,10 +96,6 @@ Good question! I like you, you're trying to figure out something new. Unfortunat
 
 In short, probably not. This requires some previous knowledge, and by the time that knowledge is acquired, you'll already have an answer to this question.
 
-### no man page
-
-All in good time.
-
 ### searchable history
 
 Maybe. In the mean time, if grepping trough hist output is too much of a hassle add a wrapper function to your profile:
