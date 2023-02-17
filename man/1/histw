@@ -63,6 +63,10 @@ Parse and insert previous command as the rc input.
 .TP
 .B CTRL+DOWN
 Parse and insert next command as the rc input.
+.SS Searching trough history
+.TP
+Write search string in to command prompt before using
+keyboard shortcuts.
 .SH SOURCE
 https://github.com/Nailim/plan9-rchistory
 .SH SEE ALSO
