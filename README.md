@@ -66,6 +66,10 @@ By default interactive mode searces trough history from the current window (loca
 
 Run *hist* command to print out the commands used in this terminal window. By default it parses and prints history from the current terminal window (local history). To include history saved from all terminal windows (global history) use "-g" flag. To print out only global history use "-G" flag.
 
+If grepping trough hist output is too much of a hassle add a wrapper function to your profile:
+
+`fn h { if(test $#* '=' 0) hist -G; if not hist -G | grep $* }`
+
 **savehist**
 
 Run *savehist* command to parse and save current local history to global history, located in $home/lib/rchistory file.
@@ -79,6 +83,8 @@ Define a *quit* function to save and exit the current terminal window by definin
 **histw**
 
 Use CTRL + UP or CTRL + DOWN key conbinations to insert previous or next line of history in to the prompt.
+
+To search trough history, type text to empty promt in terminal window before using key combinations. 
 
 Pressing enter (and running the selected command) or pressing delete (canceling selected command) will reset interactive history to initial state.
 
@@ -95,12 +101,6 @@ Good question! I like you, you're trying to figure out something new. Unfortunat
 ### is this for me
 
 In short, probably not. This requires some previous knowledge, and by the time that knowledge is acquired, you'll already have an answer to this question.
-
-### searchable history
-
-Maybe. In the mean time, if grepping trough hist output is too much of a hassle add a wrapper function to your profile:
-
-`fn h { if(test $#* '=' 0) hist -G; if not hist -G | grep $* }`
 
 ### could this be configured (or developed) better
 
