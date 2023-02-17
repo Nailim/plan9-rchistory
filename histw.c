@@ -19,6 +19,9 @@ static int tstate;
 static ulong tpos;
 static ulong tsize;
 
+static int fstate;
+static char *pfilter;
+
 static int hop;
 static int hsrc;
 
@@ -37,6 +40,10 @@ resethstate(void){
 	if(useglobal > uselocal){
 		hsrc = 2;
 	}
+
+	fstate = 0;
+	free(pfilter);
+	pfilter = 0;
 }
 
 
@@ -90,6 +97,107 @@ textsize(char *fname)
 	close(fd);
 	
 	return sum;
+}
+
+
+int
+filtercheck(char *sarr, int slen, char *fstr)
+{
+	/* check if withing given length of char array exist filter string */
+	/* do so by converint array + size to string then look for substring */
+
+	/* no filter, return true */
+	if(fstr == nil){
+		return 1;
+	}
+
+	/* prepare and compare strings */
+	char *sstr = malloc(slen+1);
+
+	memset(sstr, 0, slen+1);
+	memcpy(sstr, sarr, slen);
+
+	char *subres = cistrstr(sstr, fstr);
+
+	free(sstr);
+
+	if(subres != 0){
+		return 1;
+	}
+
+	return 0;
+}
+
+
+char*
+fromprompt(void)
+{
+	/* parse current window text file to scrape any text after prompt */
+
+	#define TPS 128
+	#define PBS 512
+
+	int tfd;
+	char textpath[TPS];
+	char pbf[PBS];
+
+	fstate = 1;
+
+	/* compose full path to text resource of current terminal */
+	memset(textpath, 0, TPS);
+	snprint(textpath, TPS, "/dev/wsys/%d/text", wwid);
+
+	ulong ts = textsize(textpath);
+
+	if(ts == 0){
+		return 0;
+	}
+
+	/* search in reverse MUST NOT have null chars at the beginning */
+	memset(pbf, 64, PBS);
+	pbf[PBS-1] = 0;
+
+	
+	ulong bfl = PBS - 1;
+	if(ts < bfl){
+		/* less text than buffer */
+		bfl = ts;
+	}
+
+	tfd = open(textpath, OREAD);
+	long rc = pread(tfd, pbf, bfl, (ts-bfl));
+	close(tfd);
+
+
+	tokenize(getenv("prompt"), &prompt, 1);
+	int prc = strlen(prompt);
+
+	char *ssp = 0;
+	char *tmpfr = pbf;
+	do{
+		tmpfr = strstr(tmpfr, prompt);
+		if(tmpfr != 0){
+			ssp = tmpfr;
+			tmpfr = tmpfr + 1;
+		}
+	} while(tmpfr != 0 && tmpfr < (pbf + PBS - 1));
+
+	free(prompt);
+
+	if(ssp == 0){
+		return 0;
+	}
+
+
+	char *pstr = 0;
+
+	if(rc - ((ssp-pbf)+(prc+1)) > 0){
+		pstr = (char*) malloc(rc - ((ssp-pbf)+prc));
+		memset(pstr, 0, rc - ((ssp-pbf)+prc));
+		strncpy(pstr, ssp+prc+1, rc - ((ssp-pbf)+(prc+1)));
+	}
+
+	return pstr;
 }
 
 
@@ -150,39 +258,41 @@ processhist(void)
 
 
 	/* find current window id */
-	if(uselocal){
-		int dsn, dn, wid;
-		Dir *ds, *d;
-		char s[256], *t[8];
+	int dsn, dn, wid;
+	Dir *ds, *d;
+	char s[256], *t[8];
 
-		wid = 0;
+	wid = 0;
 
-		seek(wsysfd, 0, 0);
-		dsn = dirreadall(wsysfd, &ds);
+	seek(wsysfd, 0, 0);
+	dsn = dirreadall(wsysfd, &ds);
 
-		for(dn = 0, d = ds; dn < dsn; dn++, d++){
-			if(readwctl(s, sizeof(s), atoi(d->name)) <= 0){
-				continue;
-			}
-
-			if(tokenize(s, t, nelem(t)) != 6){
-				continue;
-			}
-			
-			if(strcmp(t[4], "current") == 0){
-				wid = atoi(d->name);
-				break;
-			}
+	for(dn = 0, d = ds; dn < dsn; dn++, d++){
+		if(readwctl(s, sizeof(s), atoi(d->name)) <= 0){
+			continue;
 		}
 
-		if(wid != wwid){
-			resethstate();
-			toprompt("", 0);
-			wwid = wid;
+		if(tokenize(s, t, nelem(t)) != 6){
+			continue;
 		}
-
+	
+		if(strcmp(t[4], "current") == 0){
+			wid = atoi(d->name);
+			break;
+		}
 	}
 
+	if(wid != wwid){
+		resethstate();
+		toprompt("", 0);
+		wwid = wid;
+	}
+
+
+	/* check for prompt input as search filter */
+	if(fstate == 0){
+		pfilter = fromprompt();
+	}
 
 	/* process local history from /dev/wsys/%id/text */
 	if(hsrc == 1 && hop != 0){
@@ -242,18 +352,6 @@ processhist(void)
 			}
 
 
-			/* no more history, set prompt alert */
-			if(tp == 0){
-				toprompt("# END OF LOCAL HISTORY", 22);
-
-				/* switch to global history if configured */
-				if(useglobal){
-					toprompt("# START OF GLOBAL HISTORY", 25);
-					tstate = 0;
-					hsrc = 2;
-					hop = 0;
-				}
-			}
 
 
 			while(tp > 0){
@@ -305,14 +403,19 @@ processhist(void)
 							if(hop > 1){
 								hop--;
 							} else {
-								/* command to propt */
-								toprompt(ssp + prc + 1, (sse-ssp) - prc - 1);
-								if(tp < (LBFS-1-(ssp-linebf))){
-									tp = 0;
-								} else {
-									tp -= (LBFS-1-(ssp-linebf));
+								/* skip displaying commands without filter string */
+								if(filtercheck(ssp+prc+1, (sse-ssp)-prc-1, pfilter)){
+									/* command to propt */
+
+									if(tp < (LBFS-1-(ssp-linebf))){
+										tp = 0;
+									} else {
+										tp -= (LBFS-1-(ssp-linebf));
+									}
+
+									toprompt(ssp+prc+1, (sse-ssp)-prc-1);
+									break;
 								}
-								break;
 							}
 						}
 					}
@@ -417,6 +520,20 @@ processhist(void)
 					hop = 0;
 				}
 			}
+
+			/* no more history, set prompt alert */
+			if(tp == 0){
+				toprompt("# END OF LOCAL HISTORY", 22);
+
+				/* switch to global history if configured */
+				if(useglobal){
+					toprompt("# START OF GLOBAL HISTORY", 25);
+					tstate = 0;
+					hsrc = 2;
+					hop = 0;
+				}
+			}
+
 			tpos = tp; /* mark where we stopped */
 		}
 
@@ -467,10 +584,13 @@ processhist(void)
 								if(hop < -1){
 									hop++;
 								} else {
-									/* print out command to propt */
-									toprompt(linebf + prc + 1, (sse-linebf) - prc - 1);
-									tp += (sse-linebf) + 1;
-									break;
+									/* skip displaying commands without filter string */
+									if(filtercheck(linebf+prc+1, (sse-linebf)-prc-1, pfilter)){
+										/* command to propt */
+										tp += (sse-linebf)+1;
+										toprompt(linebf+prc+1, (sse-linebf)-prc-1);
+										break;
+									}
 								}
 							}
 						}
@@ -497,8 +617,12 @@ processhist(void)
 					tp += strlen(linebf);
 					memset(linebf, 0, (LBFS-1));
 
-					/* no more history, set prompt to empty */
-					toprompt("", 0);
+					/* no more history, reset prompt */
+					if(pfilter == 0){
+						toprompt("", 0);
+					} else {
+						toprompt(pfilter, strlen(pfilter));
+					}
 					hop = 0;
 				}
 
@@ -511,8 +635,12 @@ processhist(void)
 
 				/* tainted history - less to read than detected at start */
 				if((rc == 0) && (bfl != 0)){
-					/* don't know what's going on, set prompt to empty */
-					toprompt("", 0);
+					/* don't know what's going on, reset prompt */
+					if(pfilter == 0){
+						toprompt("", 0);
+					} else {
+						toprompt(pfilter, strlen(pfilter));
+					}
 					tp = tsize;
 					hop = 0;
 				}
@@ -576,8 +704,14 @@ processhist(void)
 						continue;
 					}
 
-					toprompt(linebf+lbc+1, LBFS - lbc - 1);
-					break;
+					/* skip displaying commands without filter string */
+					if(filtercheck(linebf+lbc+1, LBFS-lbc-1, pfilter)){
+						toprompt(linebf+lbc+1, LBFS-lbc-1);
+						break;
+					} else {
+						lbc = LBFS - 1;
+						continue;
+					}
 				}	
 				lbc--;
 			}
@@ -597,8 +731,12 @@ processhist(void)
 			for(hc = tpos; ; hc++){
 				fr = pread(hfd, linebf+lc, 1, hc);
 				if(fr == 0){
-					/* no more history, set prompt to empty */
-					toprompt("", 0);
+					/* no more history, reset prompt */
+					if(pfilter == 0){
+						toprompt("", 0);
+					} else {
+						toprompt(pfilter, strlen(pfilter));
+					}
 					hop = 0;
 
 					/* switch to local history if configured */
@@ -623,8 +761,14 @@ processhist(void)
 						continue;
 					}
 
-					toprompt(linebf, lc);
-					break;
+					/* skip displaying commands without filter string */
+					if(filtercheck(linebf, lc, pfilter)){
+						toprompt(linebf, lc);
+						break;
+					} else {
+						lc = 0;
+						continue;
+					}
 				}
 
 				lc++;
@@ -759,10 +903,8 @@ main(int argc, char **argv)
 	hop = 0;
 	resethstate();
 
-	if(uselocal){
-		if((wsysfd = open("/dev/wsys", OREAD)) < 0){
-			sysfatal("%r");
-		}
+	if((wsysfd = open("/dev/wsys", OREAD)) < 0){
+		sysfatal("%r");
 	}
 
 
