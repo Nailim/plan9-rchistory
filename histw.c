@@ -75,26 +75,47 @@ readwctl(char *buf, int nbuf, int id)
 
 
 ulong
-textsize(char *fname)
+procfilesize(char *fname)
 {
-	/* read text file insted of using file stats */
-	/* some files like /dev/text have size 0 since they are generated */
+	/* read file insted of using file stats */
+	/* generated files like /dev/text have size 0 in stats */
 
 	int fd, r;
 	ulong sum = 0;
-		
-	char buf[1024];
+	char buf[4096];
 
-	/* get current /dev/text size */
 	fd = open(fname, OREAD);
-	for(;;){
+	if(fd < 0){
+		return 0;
+	}
+
+	do{
 		r = read(fd, buf, sizeof buf);
 		sum = sum + r;
-		if(r < sizeof buf){
-			break;
-		}
-	}
+	}while(r == sizeof buf);
+
 	close(fd);
+	
+	return sum;
+}
+
+
+ulong
+diskfilesize(char *fname)
+{
+	/* get file size using stats */
+
+	Dir *dir;
+	ulong sum;
+
+	dir = dirstat(fname);
+	if (dir == nil){
+		return 0;
+	}
+
+	sum = dir->length;
+
+	free(dir);
 	
 	return sum;
 }
@@ -147,7 +168,7 @@ fromprompt(void)
 	memset(textpath, 0, TPS);
 	snprint(textpath, TPS, "/dev/wsys/%d/text", wwid);
 
-	ulong ts = textsize(textpath);
+	ulong ts = procfilesize(textpath);
 
 	if(ts == 0){
 		return 0;
@@ -320,14 +341,14 @@ processhist(void)
 
 		/* no history file has been opened yet or we are changing state */
 		if(tstate == 0){
-			if(hop > 0){
-				tpos = textsize(histpath);	/* starting history up */
-			} else {
-				tpos = 0;	/* starting history down */
-			}
-			
-			tsize = textsize(histpath);
+			tsize = procfilesize(histpath);
 			tstate = 1;
+
+			if(hop > 0){
+				tpos = tsize;	/* starting history up */
+			} else {
+				tpos = 0;		/* starting history down */
+			}
 		}
 
 		tfd = open(histpath, OREAD);
@@ -666,7 +687,7 @@ processhist(void)
 
 		/* no history file has been opened yet or we are at the end */
 		if(tstate == 0){
-			tpos = textsize(histpath);
+			tpos = diskfilesize(histpath);
 			tstate = 1;
 		}
 

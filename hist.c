@@ -15,22 +15,25 @@ static ulong tsize;
 
 
 ulong
-textsize(char *fname)
+procfilesize(char *fname)
 {
-	/* read text file insted of using file stats */
-	/* some files like /dev/text have size 0 since they are generated */
+	/* read file insted of using file stats */
+	/* generated files like /dev/text have size 0 in stats */
 
 	int fd, r;
 	ulong sum = 0;
-		
-	char buf[1024];
+	char buf[4096];
 
-	/* get current /dev/text size */
 	fd = open(fname, OREAD);
+	if(fd < 0){
+		return 0;
+	}
+
 	do{
 		r = read(fd, buf, sizeof buf);
 		sum = sum + r;
 	}while(r == sizeof buf);
+
 	close(fd);
 	
 	return sum;
@@ -114,7 +117,7 @@ main(int argc, char **argv)
 		memset(linebf, 0, LBFS);
 
 		/* get current /dev/text size before we expand it */
-		tsize = textsize("/dev/text");
+		tsize = procfilesize("/dev/text");
 
 		print("# local history\n");
 
