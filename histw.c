@@ -133,9 +133,7 @@ filtercheck(char *sarr, int slen, char *fstr)
 	}
 
 	/* prepare and compare strings */
-	char *sstr = malloc(slen+1);
-
-	memset(sstr, 0, slen+1);
+	char *sstr = calloc(slen+1, sizeof(char));
 	memcpy(sstr, sarr, slen);
 
 	char *subres = cistrstr(sstr, fstr);
@@ -213,8 +211,7 @@ fromprompt(void)
 	char *pstr = 0;
 
 	if(rc - ((ssp-pbf)+(prc+1)) > 0){
-		pstr = (char*) malloc(rc - ((ssp-pbf)+prc));
-		memset(pstr, 0, rc - ((ssp-pbf)+prc));
+		pstr = (char*) calloc(rc - ((ssp-pbf)+prc), sizeof(char));
 		strncpy(pstr, ssp+prc+1, rc - ((ssp-pbf)+(prc+1)));
 	}
 
