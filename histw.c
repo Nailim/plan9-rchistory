@@ -696,7 +696,8 @@ processhist(void)
 		hfd = open(histpath, OREAD);
 
 		if(hfd < 0){
-			exits(nil);
+			toprompt("# NO GLOBAL HISTORY", 19);
+			hop = 0;
 		}
 
 
