@@ -355,6 +355,7 @@ processhist(void)
 		if(hop > 0){
 			/* search in reverse MUST NOT have null chars at the beginning */
 			memset(linebf, 64, LBFS);
+			linebf[LBFS-1] = 0;
 
 			/* first read exception - less text than buffer*/
 			if(bfl > (tsize - (tsize-tpos))){
@@ -368,8 +369,6 @@ processhist(void)
 				/* not processing history from the end */
 				tr = tsize - tp;
 			}
-
-
 
 
 			while(tp > 0){
