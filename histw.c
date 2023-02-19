@@ -539,10 +539,12 @@ processhist(void)
 					tp = 0;
 					hop = 0;
 				}
+
+				tpos = tp; /* mark where we stopped */
 			}
 
 			/* no more history, set prompt alert */
-			if(tp == 0){
+			if(tp == 0 && tpos == 0){
 				toprompt("# END OF LOCAL HISTORY", 22);
 
 				/* switch to global history if configured */
@@ -554,6 +556,7 @@ processhist(void)
 				}
 			}
 
+			/* repeated after the loop to update after break - for prompt alert */
 			tpos = tp; /* mark where we stopped */
 		}
 
