@@ -233,23 +233,26 @@ toprompt(char *text, int len)
 	ctlbf[3] = 0;	/* NULL - everything should be null terminted just in case */
 
 	kfd = open("/dev/kbdin", OWRITE);
+	if(kfd < 0){
+		return;
+	}
 
 	/* clear prompt */
 	write(kfd, ctlbf, 3);
 
-	if(len > 0){
-		offset = 0;
-		do{
-			if(len > CHUNKSIZE){
-				chunk = CHUNKSIZE;
-				len -= CHUNKSIZE;
-			} else {
-				chunk = len;
-				len = 0;
-			}
-			write(kfd, text+offset, chunk);
-			offset += chunk;
-		} while(len > 0);
+	offset = 0;
+
+	while(len > 0){
+		if(len > CHUNKSIZE){
+			chunk = CHUNKSIZE;
+		} else {
+			chunk = len;
+		}
+
+		write(kfd, text+offset, chunk);
+
+		offset += chunk;
+		len -= chunk;
 	}
 
 	close(kfd);
