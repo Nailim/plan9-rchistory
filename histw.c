@@ -43,7 +43,7 @@ resethstate(void){
 
 	fstate = 0;
 	free(pfilter);
-	pfilter = 0;
+	pfilter = nil;
 }
 
 
@@ -169,7 +169,7 @@ fromprompt(void)
 	ulong ts = procfilesize(textpath);
 
 	if(ts == 0){
-		return 0;
+		return nil;
 	}
 
 	/* search in reverse MUST NOT have null chars at the beginning */
@@ -191,28 +191,28 @@ fromprompt(void)
 	tokenize(getenv("prompt"), &prompt, 1);
 	int prc = strlen(prompt);
 
-	char *ssp = 0;
+	char *ssp = nil;
 	char *tmpfr = pbf;
 	do{
 		tmpfr = strstr(tmpfr, prompt);
-		if(tmpfr != 0){
+		if(tmpfr != nil){
 			ssp = tmpfr;
 			tmpfr = tmpfr + 1;
 		}
-	} while(tmpfr != 0 && tmpfr < (pbf + PBS - 1));
+	} while(tmpfr != nil && tmpfr < (pbf + PBS - 1));
 
 	free(prompt);
 
-	if(ssp == 0){
-		return 0;
+	if(ssp == nil){
+		return nil;
 	}
 
 
-	char *pstr = 0;
+	char *pstr = nil;
 
 	if(rc - ((ssp-pbf)+(prc+1)) > 0){
 		pstr = (char*) calloc(rc - ((ssp-pbf)+prc), sizeof(char));
-		strncpy(pstr, ssp+prc+1, rc - ((ssp-pbf)+(prc+1)));
+		memcpy(pstr, ssp+prc+1, rc - ((ssp-pbf)+(prc+1)));
 	}
 
 	return pstr;
@@ -382,39 +382,39 @@ processhist(void)
 
 
 				/* find prompt */
-				ssp = 0;
+				ssp = nil;
 				tmpfr = linebf;
 				do{
 					tmpfr = strstr(tmpfr, prompt);
-					if(tmpfr != 0){
+					if(tmpfr != nil){
 						ssp = tmpfr;
 						tmpfr = tmpfr + 1;
 					}
-				} while(tmpfr != 0 && tmpfr < (linebf + LBFS - 1));
+				} while(tmpfr != nil && tmpfr < (linebf + LBFS - 1));
 
 				/* find newline char */
-				sse = 0;
-				ssee = 0;
-				if(ssp != 0){
+				sse = nil;
+				ssee = nil;
+				if(ssp != nil){
 					tmpfr = ssp;
 				} else {
 					tmpfr = linebf;
 				}
 				do{
 					tmpfr = strchr(tmpfr, '\n');
-					if(tmpfr != 0){
+					if(tmpfr != nil){
 						ssee = sse;
 						sse = tmpfr;
-						if(ssp != 0){
+						if(ssp != nil){
 							break;	/* if prompt is found only next one is needed */
 						}
 						tmpfr = tmpfr + 1;
 					}
-				} while(tmpfr != 0 && tmpfr < (linebf + LBFS - 1));
+				} while(tmpfr != nil && tmpfr < (linebf + LBFS - 1));
 
 
 				/* history hit */
-				if((ssp != 0) && (sse != 0)){
+				if((ssp != nil) && (sse != nil)){
 					/* if prompt is found and is behing newline char or start of buffer */
 					if(*(ssp - 1) == '\n' || *(ssp - 1) == '@' || ssp == linebf){
 						/* and ignore empty lines */
@@ -453,7 +453,7 @@ processhist(void)
 				}
 
 				/* buffer move - prompt */
-				if((ssp != 0) && (sse == 0)){
+				if((ssp != nil) && (sse == nil)){
 					if((ssp-linebf) == 0){
 						/* nothing to move if prompt is at the beginning of buffer */
 						memset(linebf, 64, (LBFS-1));
@@ -477,10 +477,10 @@ processhist(void)
 				}
 
 				/* buffer move - newline */
-				if((ssp == 0) && (sse != 0)){
+				if((ssp == nil) && (sse != nil)){
 					if((sse-linebf) == LBFS-2){
 						/* if newline char is the last char in buffer ... */
-						if (ssee != 0){
+						if (ssee != nil){
 							/* move till second last newline char */
 							memmove(linebf + (LBFS-2-(ssee-linebf)), linebf, (ssee-linebf) + 1);
 							memset(linebf, 64, (LBFS-2-(ssee-linebf)));
@@ -514,7 +514,7 @@ processhist(void)
 				}
 
 				/* no hit in buffer exception */
-				if((ssp == 0) && (sse == 0)){
+				if((ssp == nil) && (sse == nil)){
 					memset(linebf, 64, (LBFS-1));
 					bfl = (LBFS-1);
 				}
@@ -586,7 +586,7 @@ processhist(void)
 				tr += rc;
 
 				ssp = strstr(linebf, prompt);
-				if(ssp != 0 && (*(ssp - 1) == '\n' || ssp == linebf)){
+				if(ssp != nil && (*(ssp - 1) == '\n' || ssp == linebf)){
 					/* if prompt is found and is behing newline char or start of buffer */
 					if(ssp-linebf > 0){
 						/* align prompt with start of the buffer */
@@ -599,7 +599,7 @@ processhist(void)
 					/* we trust the buffer is long enough for the whole command */
 
 					sse = strchr(linebf, '\n');
-					if(sse != 0){
+					if(sse != nil){
 						/* skip empty lines */
 						if(linebf[prc] != '\n'){
 							/* skip displaying same command on direction change */
@@ -626,7 +626,7 @@ processhist(void)
 					/* if there is no prompt in buffer */
 					/* move to next new line character instead */
 					sse = strchr(linebf, '\n');
-					if((sse != 0) && ((sse-linebf) < LBFS-2)){
+					if((sse != nil) && ((sse-linebf) < LBFS-2)){
 						memmove(linebf, sse+1, LBFS - (sse-linebf) + 1);
 						memset(linebf + LBFS - (sse-linebf) + 1, 0, (sse-linebf));
 						bfl += ((sse-linebf) + 1);
@@ -641,7 +641,7 @@ processhist(void)
 					memset(linebf, 0, (LBFS-1));
 
 					/* no more history, reset prompt */
-					if(pfilter == 0){
+					if(pfilter == nil){
 						toprompt("", 0);
 					} else {
 						toprompt(pfilter, strlen(pfilter));
@@ -659,7 +659,7 @@ processhist(void)
 				/* tainted history - less to read than detected at start */
 				if((rc == 0) && (bfl != 0)){
 					/* don't know what's going on, reset prompt */
-					if(pfilter == 0){
+					if(pfilter == nil){
 						toprompt("", 0);
 					} else {
 						toprompt(pfilter, strlen(pfilter));
@@ -756,7 +756,7 @@ processhist(void)
 				fr = pread(hfd, linebf+lc, 1, hc);
 				if(fr == 0){
 					/* no more history, reset prompt */
-					if(pfilter == 0){
+					if(pfilter == nil){
 						toprompt("", 0);
 					} else {
 						toprompt(pfilter, strlen(pfilter));
