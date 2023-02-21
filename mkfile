@@ -32,10 +32,6 @@ install:V:
 	cp man/1/hist $MAN/1/
 	cp man/1/histw $MAN/1/
 	cp man/1/savehist $MAN/1/
-	
-	rm -f $home/bin/$objtype/hist
-	rm -f $home/bin/$objtype/histw
-	rm -f $home/bin/rc/savehist
 
 uninstall:V:
 	rm -f $BIN/hist
@@ -45,7 +41,3 @@ uninstall:V:
 	rm -f $MAN/1/hist
 	rm -f $MAN/1/histw
 	rm -f $MAN/1/savehist
-	
-	rm -f $home/bin/$objtype/hist
-	rm -f $home/bin/$objtype/histw
-	rm -f $home/bin/rc/savehist
