@@ -862,12 +862,12 @@ process(char *s)
 		}
 
 		/* reset history tracking and state if command entered or canceled */
-		if(r == 10){
+		if(*s == 'c' && r == 10){
 			/* enter key */
 			hop = 0;
 			resethstate();
 		}
-		if(r == 127){
+		if(*s == 'c' && r == 127){
 			/* delete key */
 			hop = 0;
 			resethstate();
