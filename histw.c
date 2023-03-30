@@ -664,6 +664,7 @@ processhist(void)
 						toprompt(state.pfilter, strlen(state.pfilter));
 					}
 					state.hop = 0;
+					state.fstate = 0;
 				}
 
 				/* last read (end of data) exception */
@@ -683,6 +684,7 @@ processhist(void)
 					}
 					tp = state.tsize;
 					state.hop = 0;
+					state.fstate = 0;
 				}
 			}
 			state.tpos = tp; /* mark where we stopped */
@@ -772,19 +774,21 @@ processhist(void)
 			for(hc = state.tpos; ; hc++){
 				fr = pread(hfd, linebf+lc, 1, hc);
 				if(fr == 0){
-					/* no more history, reset prompt */
-					if(state.pfilter == nil){
-						toprompt("", 0);
-					} else {
-						toprompt(state.pfilter, strlen(state.pfilter));
-					}
-					state.hop = 0;
-
-					/* switch to local history if configured */
+					/* no more history */
 					if(uselocal){
+						/* switch to local history if configured */
 						toprompt("# START OF LOCAL HISTORY", 24);
 						state.tstate = 0;
 						state.tsrc = 1;
+					} else {
+						/* reset prompt */
+						if(state.pfilter == nil){
+							toprompt("", 0);
+						} else {
+							toprompt(state.pfilter, strlen(state.pfilter));
+						}
+						state.hop = 0;
+						state.fstate = 0;
 					}
 					break;
 				}
