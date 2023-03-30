@@ -7,43 +7,60 @@
 #define LBFS 1024
 #define HPS 512
 
-static int mod;
 
 static int uselocal;
 static int useglobal;
 
+static int wsysfd;
+
+static int mod;
+
 static char *home;
 static char *prompt;
 
-static int tstate;
-static ulong tpos;
-static ulong tsize;
 
-static int fstate;
-static char *pfilter;
+struct Hstate {
+	/* track text file state */
+	int tstate;
+	int tsrc;
+	ulong tsize;
+	ulong tpos;
 
-static int hop;
-static int hsrc;
+	/* track operation state */
+	int hop;
 
-static int wwid;
+	/* track filter state */
+	int fstate;
+	char *pfilter;
 
-static int wsysfd;
+	/* track window */
+	int wwid;
+};
+
+typedef struct Hstate Hstate;
+
+static Hstate state;
 
 
 void
 resethstate(void){
-	tstate = 0;
-
-	wwid = 0;
-
-	hsrc = 1;
-	if(useglobal > uselocal){
-		hsrc = 2;
+	state.tstate = 0;
+	if(uselocal >= useglobal){
+		state.tsrc = 1;
+	
+	} else {
+		state.tsrc = 2;
 	}
+	
+	state.tsize = 0;
+	state.tpos = 0;
 
-	fstate = 0;
-	free(pfilter);
-	pfilter = nil;
+	state.fstate = 0;
+
+	free(state.pfilter);
+	state.pfilter = nil;
+
+	state.wwid = 0;
 }
 
 
@@ -160,11 +177,11 @@ fromprompt(void)
 	char textpath[TPS];
 	char pbf[PBS];
 
-	fstate = 1;
+	state.fstate = 1;
 
 	/* compose full path to text resource of current terminal */
 	memset(textpath, 0, TPS);
-	snprint(textpath, TPS, "/dev/wsys/%d/text", wwid);
+	snprint(textpath, TPS, "/dev/wsys/%d/text", state.wwid);
 
 	ulong ts = procfilesize(textpath);
 
@@ -266,7 +283,7 @@ processhist(void)
 	/* >0 - history foreward by x */
 	/* <0 - history backward by x */
 
-	/* history sorce (hsrc) legend: */
+	/* history sorce (tsrc) legend: */
 	/* 1 - local history */
 	/* 2 - global hitory */
 
@@ -303,20 +320,20 @@ processhist(void)
 		}
 	}
 
-	if(wid != wwid){
+	if(wid != state.wwid){
 		resethstate();
 		toprompt("", 0);
-		wwid = wid;
+		state.wwid = wid;
 	}
 
 
 	/* check for prompt input as search filter */
-	if(fstate == 0){
-		pfilter = fromprompt();
+	if(state.fstate == 0){
+		state.pfilter = fromprompt();
 	}
 
 	/* process local history from /dev/wsys/%id/text */
-	if(hsrc == 1 && hop != 0){
+	if(state.tsrc == 1 && state.hop != 0){
 		int tfd, rc;
 
 		tokenize(getenv("prompt"), &prompt, 1);
@@ -337,17 +354,17 @@ processhist(void)
 		memset(histpath, 0, HPS);
 
 		/* compose full path to local user history */
-		snprint(histpath, HPS, "/dev/wsys/%d/text", wwid);
+		snprint(histpath, HPS, "/dev/wsys/%d/text", state.wwid);
 
 		/* no history file has been opened yet or we are changing state */
-		if(tstate == 0){
-			tsize = procfilesize(histpath);
-			tstate = 1;
+		if(state.tstate == 0){
+			state.tsize = procfilesize(histpath);
+			state.tstate = 1;
 
-			if(hop > 0){
-				tpos = tsize;	/* starting history up */
+			if(state.hop > 0){
+				state.tpos = state.tsize;	/* starting history up */
 			} else {
-				tpos = 0;		/* starting history down */
+				state.tpos = 0;		/* starting history down */
 			}
 		}
 
@@ -355,27 +372,27 @@ processhist(void)
 
 
 		/* history up */
-		if(hop > 0){
+		if(state.hop > 0){
 			/* search in reverse MUST NOT have null chars at the beginning */
 			memset(linebf, 64, LBFS);
 			linebf[LBFS-1] = 0;
 
 			/* first read exception - less text than buffer*/
-			if(bfl > (tsize - (tsize-tpos))){
-				bfl = (tsize - (tsize-tpos));
+			if(bfl > (state.tsize - (state.tsize-state.tpos))){
+				bfl = (state.tsize - (state.tsize-state.tpos));
 				bfld = ((LBFS-1) - bfl);
 			}
 
 			tr = 0;
-			tp = tpos;
-			if(tp != tsize){
+			tp = state.tpos;
+			if(tp != state.tsize){
 				/* not processing history from the end */
-				tr = tsize - tp;
+				tr = state.tsize - tp;
 			}
 
 
 			while(tp > 0){
-				rc = pread(tfd, linebf + bfld, bfl, (tsize-tr) - bfl);
+				rc = pread(tfd, linebf + bfld, bfl, (state.tsize-tr) - bfl);
 				bfl -= rc;
 				bfld = 0;
 				tr += rc;
@@ -420,11 +437,11 @@ processhist(void)
 						/* and ignore empty lines */
 						if((sse-ssp) - prc - 1 > 0){
 							/* skip displaying same command on direction change */
-							if(hop > 1){
-								hop--;
+							if(state.hop > 1){
+								state.hop--;
 							} else {
 								/* skip displaying commands without filter string */
-								if(filtercheck(ssp+prc+1, (sse-ssp)-prc-1, pfilter)){
+								if(filtercheck(ssp+prc+1, (sse-ssp)-prc-1, state.pfilter)){
 									/* command to propt */
 
 									if(tp < (LBFS-1-(ssp-linebf))){
@@ -520,9 +537,9 @@ processhist(void)
 				}
 
 				/* last read (end of data) exception */
-				if((tr+bfl) > tsize){
+				if((tr+bfl) > state.tsize){
 					bfld = bfl;
-					bfl = bfl - ((tr+bfl) - tsize);
+					bfl = bfl - ((tr+bfl) - state.tsize);
 					bfld = bfld - bfl;
 				}
 
@@ -531,55 +548,55 @@ processhist(void)
 					/* tainted history - less to read than detected at start */
 					toprompt("", 0);
 					tp = 0;
-					hop = 0;
+					state.hop = 0;
 				}
 				if((rc == 0) && (bfl == 0) && (ssp == sse)){
 					/* tainted buffer - nothing to read or parse */
 					toprompt("", 0);
 					tp = 0;
-					hop = 0;
+					state.hop = 0;
 				}
 
-				tpos = tp; /* mark where we stopped */
+				state.tpos = tp; /* mark where we stopped */
 			}
 
 			/* no more history, set prompt alert */
-			if(tp == 0 && tpos == 0){
+			if(tp == 0 && state.tpos == 0){
 				toprompt("# END OF LOCAL HISTORY", 22);
 
 				/* switch to global history if configured */
 				if(useglobal){
 					toprompt("# START OF GLOBAL HISTORY", 25);
-					tstate = 0;
-					hsrc = 2;
-					hop = 0;
+					state.tstate = 0;
+					state.tsrc = 2;
+					state.hop = 0;
 				}
 			}
 
 			/* repeated after the loop to update after break - for prompt alert */
-			tpos = tp; /* mark where we stopped */
+			state.tpos = tp; /* mark where we stopped */
 		}
 
 
 		/* history down */
-		if(hop < 0){
+		if(state.hop < 0){
 			/* search in reverse MUST have null chars at the end */
 			memset(linebf, 0, LBFS);
 
 			/* first read exception - less text than buffer */
-			if(bfl > (tsize - tpos)){
-				bfl = (tsize - tpos);
+			if(bfl > (state.tsize - state.tpos)){
+				bfl = (state.tsize - state.tpos);
 				bfld = ((LBFS-1) - bfl);
 			}
 
 			tr = 0;
-			tp = tpos;
+			tp = state.tpos;
 			if(tp != 0){
 				/* not processing history from the beginning */
 				tr = tp;
 			}
 
-			while(tp < tsize){
+			while(tp < state.tsize){
 				rc = pread(tfd, linebf + ((LBFS-1)-bfl) - bfld,  bfl, tr);
 				bfl -= rc;
 				bfld = 0;
@@ -604,11 +621,11 @@ processhist(void)
 						if(linebf[prc] != '\n'){
 							/* skip displaying same command on direction change */
 							if((sse-linebf) - prc > 1){
-								if(hop < -1){
-									hop++;
+								if(state.hop < -1){
+									state.hop++;
 								} else {
 									/* skip displaying commands without filter string */
-									if(filtercheck(linebf+prc+1, (sse-linebf)-prc-1, pfilter)){
+									if(filtercheck(linebf+prc+1, (sse-linebf)-prc-1, state.pfilter)){
 										/* command to propt */
 										tp += (sse-linebf)+1;
 										toprompt(linebf+prc+1, (sse-linebf)-prc-1);
@@ -641,34 +658,34 @@ processhist(void)
 					memset(linebf, 0, (LBFS-1));
 
 					/* no more history, reset prompt */
-					if(pfilter == nil){
+					if(state.pfilter == nil){
 						toprompt("", 0);
 					} else {
-						toprompt(pfilter, strlen(pfilter));
+						toprompt(state.pfilter, strlen(state.pfilter));
 					}
-					hop = 0;
+					state.hop = 0;
 				}
 
 				/* last read (end of data) exception */
-				if((tr+bfl) > tsize){
+				if((tr+bfl) > state.tsize){
 					bfld = bfl;
-					bfl = bfl - ((tr+bfl) - tsize);
+					bfl = bfl - ((tr+bfl) - state.tsize);
 					bfld = bfld - bfl;
 				}
 
 				/* tainted history - less to read than detected at start */
 				if((rc == 0) && (bfl != 0)){
 					/* don't know what's going on, reset prompt */
-					if(pfilter == nil){
+					if(state.pfilter == nil){
 						toprompt("", 0);
 					} else {
-						toprompt(pfilter, strlen(pfilter));
+						toprompt(state.pfilter, strlen(state.pfilter));
 					}
-					tp = tsize;
-					hop = 0;
+					tp = state.tsize;
+					state.hop = 0;
 				}
 			}
-			tpos = tp; /* mark where we stopped */
+			state.tpos = tp; /* mark where we stopped */
 		}
 
 
@@ -679,7 +696,7 @@ processhist(void)
 
 
 	/* process global history from $home/lib/rchistory */
-	if(hsrc == 2 && hop != 0){
+	if(state.tsrc == 2 && state.hop != 0){
 
 		home = getenv("home");
 
@@ -688,9 +705,9 @@ processhist(void)
 		strcat(histpath, "/lib/rchistory");
 
 		/* no history file has been opened yet or we are at the end */
-		if(tstate == 0){
-			tpos = diskfilesize(histpath);
-			tstate = 1;
+		if(state.tstate == 0){
+			state.tpos = diskfilesize(histpath);
+			state.tstate = 1;
 		}
 
 		memset(linebf, 0, LBFS);
@@ -699,37 +716,37 @@ processhist(void)
 
 		if(hfd < 0){
 			toprompt("# NO GLOBAL HISTORY", 19);
-			hop = 0;
+			state.hop = 0;
 		}
 
 
 		/* history up */
-		if(hop > 0){
+		if(state.hop > 0){
 			int lbc = LBFS - 1;
 
-			for(hc = tpos; hc >= 0; hc--){
+			for(hc = state.tpos; hc >= 0; hc--){
 				pread(hfd, linebf+lbc, 1, hc-1);
 			
 				if(linebf[lbc] == '\n' || hc == 0){
 					if(hc == 0){
-						tpos = 0;
+						state.tpos = 0;
 					}
 					else {
-						tpos = hc - 1;
+						state.tpos = hc - 1;
 					}
 
 					if(lbc == LBFS - 1){
 						continue;
 					}
 
-					if(hop > 1){
-						hop--;
+					if(state.hop > 1){
+						state.hop--;
 						lbc = LBFS - 1;
 						continue;
 					}
 
 					/* skip displaying commands without filter string */
-					if(filtercheck(linebf+lbc+1, LBFS-lbc-1, pfilter)){
+					if(filtercheck(linebf+lbc+1, LBFS-lbc-1, state.pfilter)){
 						toprompt(linebf+lbc+1, LBFS-lbc-1);
 						break;
 					} else {
@@ -741,52 +758,52 @@ processhist(void)
 			}
 
 			/* no more history, set prompt alert */
-			if(tpos == 0 && hc < 0){
+			if(state.tpos == 0 && hc < 0){
 				toprompt("# END OF GLOBAL HISTORY", 23);
-				hop = 0;
+				state.hop = 0;
 			}
 		}
 
 
 		/* history down */	
-		if(hop < 0){
+		if(state.hop < 0){
 			int lc = 0;
 
-			for(hc = tpos; ; hc++){
+			for(hc = state.tpos; ; hc++){
 				fr = pread(hfd, linebf+lc, 1, hc);
 				if(fr == 0){
 					/* no more history, reset prompt */
-					if(pfilter == nil){
+					if(state.pfilter == nil){
 						toprompt("", 0);
 					} else {
-						toprompt(pfilter, strlen(pfilter));
+						toprompt(state.pfilter, strlen(state.pfilter));
 					}
-					hop = 0;
+					state.hop = 0;
 
 					/* switch to local history if configured */
 					if(uselocal){
 						toprompt("# START OF LOCAL HISTORY", 24);
-						tstate = 0;
-						hsrc = 1;
+						state.tstate = 0;
+						state.tsrc = 1;
 					}
 					break;
 				}
 
 				if(linebf[lc] == '\n'){
-					tpos = hc + 1;
+					state.tpos = hc + 1;
 
 					if(lc == 0){
 						continue;
 					}
 
-					if(hop < -1){
-						hop++;
+					if(state.hop < -1){
+						state.hop++;
 						lc = 0;
 						continue;
 					}
 
 					/* skip displaying commands without filter string */
-					if(filtercheck(linebf, lc, pfilter)){
+					if(filtercheck(linebf, lc, state.pfilter)){
 						toprompt(linebf, lc);
 						break;
 					} else {
@@ -838,19 +855,19 @@ process(char *s)
 		exec = 0;
 		if(*s == 'c' && mod == Kctl){
 			if(r == Kup){
-				if(hop < 0){
-					hop = 2;
+				if(state.hop < 0){
+					state.hop = 2;
 				} else {
-					hop = 1;
+					state.hop = 1;
 				}
 				skip = 1;
 				exec = 1;
 			}
 			if(r == Kdown){
-				if(hop > 0){
-					hop = -2;
+				if(state.hop > 0){
+					state.hop = -2;
 				} else {
-					hop = -1;
+					state.hop = -1;
 				}
 				skip = 1;
 				exec = 1;
@@ -865,7 +882,7 @@ process(char *s)
 		if(*s == 'c' && (r == 10 || r == 127)){
 			/* 10 - enter key */
 			/* 127 - delete key */
-			hop = 0;
+			state.hop = 0;
 			resethstate();
 		}
 
@@ -920,7 +937,7 @@ main(int argc, char **argv)
 	int i, j, n;
 
 	/* init history operations tracking and state */
-	hop = 0;
+	state.hop = 0;
 	resethstate();
 
 	if((wsysfd = open("/dev/wsys", OREAD)) < 0){
