@@ -42,28 +42,6 @@ typedef struct Hstate Hstate;
 static Hstate state;
 
 
-void
-resethstate(void){
-	state.tstate = 0;
-	if(uselocal >= useglobal){
-		state.tsrc = 1;
-	
-	} else {
-		state.tsrc = 2;
-	}
-	
-	state.tsize = 0;
-	state.tpos = 0;
-
-	state.fstate = 0;
-
-	free(state.pfilter);
-	state.pfilter = nil;
-
-	state.wwid = 0;
-}
-
-
 int
 readwctl(char *buf, int nbuf, int id)
 {
@@ -273,6 +251,41 @@ toprompt(char *text, int len)
 	}
 
 	close(kfd);
+}
+
+
+void
+resethstate(void){
+	state.tstate = 0;
+	if(uselocal >= useglobal){
+		state.tsrc = 1;
+	
+	} else {
+		state.tsrc = 2;
+	}
+	
+	state.tsize = 0;
+	state.tpos = 0;
+
+	state.fstate = 0;
+
+	free(state.pfilter);
+	state.pfilter = nil;
+
+	state.wwid = 0;
+}
+
+
+void
+resetprompt(void){
+	if(state.pfilter == nil){
+		toprompt("", 0);
+	} else {
+		toprompt(state.pfilter, strlen(state.pfilter));
+	}
+
+	state.hop = 0;
+	state.fstate = 0;
 }
 
 
@@ -658,13 +671,7 @@ processhist(void)
 					memset(linebf, 0, (LBFS-1));
 
 					/* no more history, reset prompt */
-					if(state.pfilter == nil){
-						toprompt("", 0);
-					} else {
-						toprompt(state.pfilter, strlen(state.pfilter));
-					}
-					state.hop = 0;
-					state.fstate = 0;
+					resetprompt();
 				}
 
 				/* last read (end of data) exception */
@@ -677,14 +684,8 @@ processhist(void)
 				/* tainted history - less to read than detected at start */
 				if((rc == 0) && (bfl != 0)){
 					/* don't know what's going on, reset prompt */
-					if(state.pfilter == nil){
-						toprompt("", 0);
-					} else {
-						toprompt(state.pfilter, strlen(state.pfilter));
-					}
+					resetprompt();
 					tp = state.tsize;
-					state.hop = 0;
-					state.fstate = 0;
 				}
 			}
 			state.tpos = tp; /* mark where we stopped */
@@ -782,13 +783,7 @@ processhist(void)
 						state.tsrc = 1;
 					} else {
 						/* reset prompt */
-						if(state.pfilter == nil){
-							toprompt("", 0);
-						} else {
-							toprompt(state.pfilter, strlen(state.pfilter));
-						}
-						state.hop = 0;
-						state.fstate = 0;
+						resetprompt();
 					}
 					break;
 				}
