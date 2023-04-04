@@ -255,28 +255,6 @@ toprompt(char *text, int len)
 
 
 void
-resethstate(void){
-	state.tstate = 0;
-	if(uselocal >= useglobal){
-		state.tsrc = 1;
-	
-	} else {
-		state.tsrc = 2;
-	}
-	
-	state.tsize = 0;
-	state.tpos = 0;
-
-	state.fstate = 0;
-
-	free(state.pfilter);
-	state.pfilter = nil;
-
-	state.wwid = 0;
-}
-
-
-void
 resetprompt(void){
 	if(state.pfilter == nil){
 		toprompt("", 0);
@@ -290,11 +268,35 @@ resetprompt(void){
 
 
 void
-processhist(void)
+resethstate(void){
+	state.tstate = 0;
+	if(uselocal >= useglobal){
+		state.tsrc = 1;
+	
+	} else {
+		state.tsrc = 2;
+	}
+	
+	state.tsize = 0;
+	state.tpos = 0;
+
+	state.hop = 0;
+
+	state.fstate = 0;
+
+	free(state.pfilter);
+	state.pfilter = nil;
+
+	state.wwid = 0;
+}
+
+
+void
+processhist(int kbdcmd)
 {
 	/* history operations (hop) legend: */
-	/* >0 - history foreward by x */
-	/* <0 - history backward by x */
+	/* >0 - history up by x */
+	/* <0 - history down by x */
 
 	/* history sorce (tsrc) legend: */
 	/* 1 - local history */
@@ -335,8 +337,25 @@ processhist(void)
 
 	if(wid != state.wwid){
 		resethstate();
-		toprompt("", 0);
+		resetprompt();
 		state.wwid = wid;
+	}
+
+
+	/* determine history operation */
+	if(kbdcmd > 0){
+		if(state.hop < 0){
+			state.hop = 2;
+		} else {
+			state.hop = 1;
+		}
+	}
+	if(kbdcmd < 0){
+		if(state.hop > 0){
+			state.hop = -2;
+		} else {
+			state.hop = -1;
+		}
 	}
 
 
@@ -344,6 +363,7 @@ processhist(void)
 	if(state.fstate == 0){
 		state.pfilter = fromprompt();
 	}
+
 
 	/* process local history from /dev/wsys/%id/text */
 	if(state.tsrc == 1 && state.hop != 0){
@@ -609,6 +629,12 @@ processhist(void)
 				tr = tp;
 			}
 
+			/* no history, nothing will happen*/
+			if(tp == state.tsize){
+				/* reset prompt */
+				resetprompt();
+			}
+
 			while(tp < state.tsize){
 				rc = pread(tfd, linebf + ((LBFS-1)-bfl) - bfld,  bfl, tr);
 				bfl -= rc;
@@ -822,11 +848,13 @@ processhist(void)
 
 
 static void
-process(char *s)
+processkbd(char *s)
 {
 	char b[128], *p;
 	int n, o, skip, exec;
 	Rune r;
+
+	int kbdcmd;
 
 	o = 0;
 	b[o++] = *s;
@@ -852,37 +880,40 @@ process(char *s)
 		/* react to key combinations */
 		skip = 0;
 		exec = 0;
+		kbdcmd = 0;
 		if(*s == 'c' && mod == Kctl){
-			if(r == Kup){
-				if(state.hop < 0){
-					state.hop = 2;
-				} else {
-					state.hop = 1;
+			if(mod == Kctl){
+				if(r == Kup){
+					// if(state.hop < 0){
+					// 	state.hop = 2;
+					// } else {
+					// 	state.hop = 1;
+					// }
+					kbdcmd = 1;
+					skip = 1;
+					exec = 1;
 				}
-				skip = 1;
-				exec = 1;
+				if(r == Kdown){
+					// if(state.hop > 0){
+					// 	state.hop = -2;
+					// } else {
+					// 	state.hop = -1;
+					// }
+					kbdcmd = -1;
+					skip = 1;
+					exec = 1;
+				}
 			}
-			if(r == Kdown){
-				if(state.hop > 0){
-					state.hop = -2;
-				} else {
-					state.hop = -1;
-				}
-				skip = 1;
-				exec = 1;
+			/* reset history tracking and state if command entered or canceled */
+			if(r == 10 || r == 127){
+				/* 10 - enter key */
+				/* 127 - delete key */
+				resethstate();
 			}
 		}
 
 		if(exec != 0){
-			processhist();
-		}
-
-		/* reset history tracking and state if command entered or canceled */
-		if(*s == 'c' && (r == 10 || r == 127)){
-			/* 10 - enter key */
-			/* 127 - delete key */
-			state.hop = 0;
-			resethstate();
+			processhist(kbdcmd);
 		}
 
 		if(!skip){
@@ -936,7 +967,6 @@ main(int argc, char **argv)
 	int i, j, n;
 
 	/* init history operations tracking and state */
-	state.hop = 0;
 	resethstate();
 
 	if((wsysfd = open("/dev/wsys", OREAD)) < 0){
@@ -952,7 +982,7 @@ main(int argc, char **argv)
 
 		for(j = 0; j < n; j++){
 			if(b[j] == 0){
-				process(b+i);
+				processkbd(b+i);
 				i = j+1;
 			}
 		}
