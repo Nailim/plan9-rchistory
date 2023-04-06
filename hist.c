@@ -17,7 +17,7 @@ static ulong tsize;
 ulong
 procfilesize(char *fname)
 {
-	/* read file insted of using file stats */
+	/* read file instead of using file stats */
 	/* generated files like /dev/text have size 0 in stats */
 
 	int fd, r;
@@ -67,7 +67,6 @@ main(int argc, char **argv)
 	}ARGEND
 
 
-	/* stand alone segment - print out history */
 	char linebf[LBFS];
 
 
@@ -137,7 +136,7 @@ main(int argc, char **argv)
 
 			ssp = strstr(linebf, prompt);
 			if((ssp != 0) && (*(ssp - 1) == '\n' || ssp == linebf)){
-				/* if prompt is found and is behing newline char or start of buffer */
+				/* if prompt is found and is behind newline char or start of buffer */
 				if(ssp-linebf > 0){
 					/* align prompt with start of the buffer */
 					memmove(linebf, ssp, LBFS - (ssp-linebf));

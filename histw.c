@@ -74,7 +74,7 @@ readwctl(char *buf, int nbuf, int id)
 ulong
 procfilesize(char *fname)
 {
-	/* get file size by reading trough file insted of using file stats */
+	/* get file size by reading through file instead of using file stats */
 	/* generated files like /dev/text have size 0 in stats */
 
 	int fd, r;
@@ -122,7 +122,7 @@ int
 filtercheck(char *sarr, int slen, char *fstr)
 {
 	/* check if withing given length of char array exist filter string */
-	/* do so by converint array + size to string then look for substring */
+	/* do so by converting array + size to string then look for substring */
 
 	/* no filter, return true */
 	if(fstr == nil){
@@ -219,7 +219,7 @@ fromprompt(void)
 void
 toprompt(char *text, int len)
 {
-	/* set window prompt with suplied text */
+	/* set window prompt with supplied text */
 	/* to ensure known state, delete anything that was there before */
 
 	#define CHUNKSIZE 64
@@ -304,15 +304,15 @@ resethstate(void){
 void
 processhist(int kbdcmd)
 {
-	/* process and display command historz depending on keyboard input */
+	/* process and display command history depending on keyboard input */
 
 	/* history operations (hop) legend: */
 	/* >0 - history up by x */
 	/* <0 - history down by x */
 
-	/* history sorce (tsrc) legend: */
+	/* history source (tsrc) legend: */
 	/* 1 - local history */
-	/* 2 - global hitory */
+	/* 2 - global history */
 
 	int hfd, fr;
 		
@@ -386,11 +386,11 @@ processhist(int kbdcmd)
 		int prc = strlen(prompt);
 
 		ulong tr;		/* text read */
-		ulong tp;		/* text proccesed */
+		ulong tp;		/* text processed */
 
 		char *ssp;		/* pointer to prompt */
 		char *sse;		/* pointer to EOL */
-		char *ssee;		/* pointer to sencond last EOL */
+		char *ssee;		/* pointer to second last EOL */
 		char *tmpfr;
 
 		int bfl = LBFS - 1;	/* buffer left to read in */
@@ -487,7 +487,7 @@ processhist(int kbdcmd)
 							} else {
 								/* skip displaying commands without filter string */
 								if(filtercheck(ssp+prc+1, (sse-ssp)-prc-1, state.pfilter)){
-									/* command to propt */
+									/* command to prompt */
 
 									if(tp < (LBFS-1-(ssp-linebf))){
 										tp = 0;
@@ -526,7 +526,7 @@ processhist(int kbdcmd)
 							tp -= (LBFS-1);
 						}
 					} else {
-						/* move the rest carefuly */
+						/* move the rest carefully */
 						memmove(linebf + (LBFS-1-(ssp-linebf)), linebf, (ssp-linebf));
 						memset(linebf, 64, (LBFS-1-(ssp-linebf)));
 						bfl += (LBFS-1-(ssp-linebf));
@@ -543,7 +543,7 @@ processhist(int kbdcmd)
 					if((sse-linebf) == LBFS-2){
 						/* if newline char is the last char in buffer ... */
 						if (ssee != nil){
-							/* move till second last newline char */
+							/* move untill second last newline char */
 							memmove(linebf + (LBFS-2-(ssee-linebf)), linebf, (ssee-linebf) + 1);
 							memset(linebf, 64, (LBFS-2-(ssee-linebf)));
 							bfl += (LBFS-2-(ssee-linebf));
@@ -655,7 +655,7 @@ processhist(int kbdcmd)
 
 				ssp = strstr(linebf, prompt);
 				if(ssp != nil && (*(ssp - 1) == '\n' || ssp == linebf)){
-					/* if prompt is found and is behing newline char or start of buffer */
+					/* if prompt is found and is behind newline char or start of buffer */
 					if(ssp-linebf > 0){
 						/* align prompt with start of the buffer */
 						memmove(linebf, ssp, LBFS - (ssp-linebf));
@@ -677,7 +677,7 @@ processhist(int kbdcmd)
 								} else {
 									/* skip displaying commands without filter string */
 									if(filtercheck(linebf+prc+1, (sse-linebf)-prc-1, state.pfilter)){
-										/* command to propt */
+										/* command to prompt */
 										tp += (sse-linebf)+1;
 										toprompt(linebf+prc+1, (sse-linebf)-prc-1);
 										break;
@@ -862,7 +862,7 @@ processhist(int kbdcmd)
 static void
 processkbd(char *s)
 {
-	/* process kexboard input */
+	/* process keyboard input */
 	/* inspired by riow and shortcuts */
 
 	char b[128], *p;
@@ -924,6 +924,7 @@ processkbd(char *s)
 		return;
 	}
 
+	/* move the keyboard chars along to the next one in the chain */
 	b[o++] = 0;
 	if(write(1, b, o) != o){
 		exits(nil);
@@ -958,18 +959,15 @@ main(int argc, char **argv)
 	}ARGEND
 
 
-	/* interactive segment - manipulate console promt */
+	if((wsysfd = open("/dev/wsys", OREAD)) < 0){
+		sysfatal("%r");
+	}
 
 	char b[128];
 	int i, j, n;
 
 	/* init history operations tracking and state */
 	resethstate();
-
-	if((wsysfd = open("/dev/wsys", OREAD)) < 0){
-		sysfatal("%r");
-	}
-
 
 	for(i = 0;;){
 		if((n = read(0, b+i, sizeof(b)-i)) <= 0){
