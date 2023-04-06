@@ -866,10 +866,8 @@ processkbd(char *s)
 	/* inspired by riow and shortcuts */
 
 	char b[128], *p;
-	int n, o, skip, exec;
+	int n, o, skip;
 	Rune r;
-
-	int kbdcmd;
 
 	o = 0;
 	b[o++] = *s;
@@ -894,20 +892,16 @@ processkbd(char *s)
 		
 		/* react to key combinations */
 		skip = 0;
-		exec = 0;
-		kbdcmd = 0;
-		if(*s == 'c' && mod == Kctl){
+		if(*s == 'c'){
 			/* react with history operations */
 			if(mod == Kctl){
 				if(r == Kup){
-					kbdcmd = 1;
+					processhist(1);
 					skip = 1;
-					exec = 1;
 				}
 				if(r == Kdown){
-					kbdcmd = -1;
+					processhist(-1);
 					skip = 1;
-					exec = 1;
 				}
 			}
 
@@ -917,10 +911,6 @@ processkbd(char *s)
 				/* 127 - delete key */
 				resethstate();
 			}
-		}
-
-		if(exec != 0){
-			processhist(kbdcmd);
 		}
 
 		if(!skip){
