@@ -45,6 +45,8 @@ static Hstate state;
 int
 readwctl(char *buf, int nbuf, int id)
 {
+	/* read control file from window with id X */
+
 	int fd, n;
 	char s[64];
 
@@ -72,7 +74,7 @@ readwctl(char *buf, int nbuf, int id)
 ulong
 procfilesize(char *fname)
 {
-	/* read file insted of using file stats */
+	/* get file size by reading trough file insted of using file stats */
 	/* generated files like /dev/text have size 0 in stats */
 
 	int fd, r;
@@ -217,6 +219,9 @@ fromprompt(void)
 void
 toprompt(char *text, int len)
 {
+	/* set window prompt with suplied text */
+	/* to ensure known state, delete anything that was there before */
+
 	#define CHUNKSIZE 64
 
 	int kfd, chunk, offset;
@@ -256,6 +261,9 @@ toprompt(char *text, int len)
 
 void
 resetprompt(void){
+	/* reset window prompt */
+	/* either delete all text or set text that was used as filter */
+
 	if(state.pfilter == nil){
 		toprompt("", 0);
 	} else {
@@ -269,6 +277,8 @@ resetprompt(void){
 
 void
 resethstate(void){
+	/* reset history state */
+
 	state.tstate = 0;
 	if(uselocal >= useglobal){
 		state.tsrc = 1;
@@ -294,6 +304,8 @@ resethstate(void){
 void
 processhist(int kbdcmd)
 {
+	/* process and display command historz depending on keyboard input */
+
 	/* history operations (hop) legend: */
 	/* >0 - history up by x */
 	/* <0 - history down by x */
@@ -850,6 +862,9 @@ processhist(int kbdcmd)
 static void
 processkbd(char *s)
 {
+	/* process kexboard input */
+	/* inspired by riow and shortcuts */
+
 	char b[128], *p;
 	int n, o, skip, exec;
 	Rune r;
@@ -882,28 +897,20 @@ processkbd(char *s)
 		exec = 0;
 		kbdcmd = 0;
 		if(*s == 'c' && mod == Kctl){
+			/* react with history operations */
 			if(mod == Kctl){
 				if(r == Kup){
-					// if(state.hop < 0){
-					// 	state.hop = 2;
-					// } else {
-					// 	state.hop = 1;
-					// }
 					kbdcmd = 1;
 					skip = 1;
 					exec = 1;
 				}
 				if(r == Kdown){
-					// if(state.hop > 0){
-					// 	state.hop = -2;
-					// } else {
-					// 	state.hop = -1;
-					// }
 					kbdcmd = -1;
 					skip = 1;
 					exec = 1;
 				}
 			}
+
 			/* reset history tracking and state if command entered or canceled */
 			if(r == 10 || r == 127){
 				/* 10 - enter key */
