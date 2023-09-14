@@ -607,14 +607,14 @@ processhist(int kbdcmd)
 
 			/* no more history, set prompt alert */
 			if(tp == 0 && state.tpos == 0){
-				toprompt("# END OF LOCAL HISTORY", 22);
-
 				/* switch to global history if configured */
 				if(useglobal){
 					toprompt("# START OF GLOBAL HISTORY", 25);
 					state.tstate = 0;
 					state.tsrc = 2;
 					state.hop = 0;
+				} else {
+					toprompt("# END OF LOCAL HISTORY", 22);
 				}
 			}
 
