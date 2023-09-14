@@ -859,7 +859,7 @@ processhist(int kbdcmd)
 }
 
 
-static void
+static int
 processkbd(char *s)
 {
 	/* process keyboard input */
@@ -876,7 +876,7 @@ processkbd(char *s)
 	if(*s == 'k' || *s == 'K'){
 		mod = 0;
 		if(utfrune(s+1, Kctl) != nil){
-			mod = Kctl;
+			mod |= Kctl;
 		}
 	}	
 
@@ -886,7 +886,6 @@ processkbd(char *s)
 			n = strlen(p);
 			memmove(b+o, p, n);
 			o += n;
-			p += n;
 			break;
 		}
 		
@@ -919,16 +918,9 @@ processkbd(char *s)
 		}
 	}
 
-	/* all runes filtered out - ignore completely */
-	if(o == 1 && p-s > 1){
-		return;
-	}
-
 	/* move the keyboard chars along to the next one in the chain */
 	b[o++] = 0;
-	if(write(1, b, o) != o){
-		exits(nil);
-	}
+	return (o > 1 && write(1, b, o) <= 0) ? -1 : 0;
 }
 
 
@@ -964,26 +956,21 @@ main(int argc, char **argv)
 	}
 
 	char b[128];
-	int i, j, n;
+	int n;
 
 	/* init history operations tracking and state */
 	resethstate();
 
-	for(i = 0;;){
-		if((n = read(0, b+i, sizeof(b)-i)) <= 0){
+	for(;;){
+		if((n = read(0, b, sizeof(b)-1)) <= 0){
 			break;
 		}
-		n += i;
 
-		for(j = 0; j < n; j++){
-			if(b[j] == 0){
-				processkbd(b+i);
-				i = j+1;
-			}
+		b[n] = 0;
+
+		if(processkbd(b) != 0) {
+			break;
 		}
-
-		memmove(b, b+i, j-i);
-		i -= j;
 	}
 
 	close(wsysfd);
