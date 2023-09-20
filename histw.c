@@ -52,7 +52,8 @@ readwctl(char *buf, int nbuf, int id)
 
 	snprint(s, sizeof(s), "/dev/wsys/%d/wctl", id);
 
-	if((fd = open(s, OREAD)) < 0){
+	fd = open(s, OREAD);
+	if(fd < 0){
 		buf[0] = 0;
 		return -1;
 	}
@@ -181,7 +182,12 @@ fromprompt(void)
 	}
 
 	tfd = open(textpath, OREAD);
+	if(tfd < 0){
+		return nil;
+	}
+
 	long rc = pread(tfd, pbf, bfl, (ts-bfl));
+
 	close(tfd);
 
 
@@ -414,6 +420,11 @@ processhist(int kbdcmd)
 		}
 
 		tfd = open(histpath, OREAD);
+
+		if(tfd < 0){
+			toprompt("# NO LOCAL HISTORY", 18);
+			state.hop = 0;
+		}
 
 
 		/* history up */
@@ -951,7 +962,8 @@ main(int argc, char **argv)
 	}ARGEND
 
 
-	if((wsysfd = open("/dev/wsys", OREAD)) < 0){
+	wsysfd = open("/dev/wsys", OREAD);
+	if(wsysfd < 0){
 		sysfatal("%r");
 	}
 
