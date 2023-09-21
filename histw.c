@@ -900,9 +900,17 @@ processkbd(char *s)
 			break;
 		}
 		
-		/* react to key combinations */
 		skip = 0;
-		if(*s == 'c'){
+
+		/* react to key combinations */
+		if(*s == 'k'){
+			/* note: instead of checking for character key ('c') */
+			/*       we're checking for control key down ('k'), since practical */
+			/*       test showed the control and key combo is received regardles */
+			/*       if tested on hardware or drawterm on any system, while that */
+			/*       is not always true for the individual characters. */
+			/*       This makes it work over drawterm in any case! */
+
 			/* react with history operations */
 			if(mod == Kctl){
 				if(r == Kup){
