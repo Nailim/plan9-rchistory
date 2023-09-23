@@ -355,6 +355,7 @@ processhist(int kbdcmd)
 
 	if(wid != state.wwid){
 		resethstate();
+		state.pfilter = fromprompt();	/* window switch, assume from beginning */
 		resetprompt();
 		state.wwid = wid;
 	}
