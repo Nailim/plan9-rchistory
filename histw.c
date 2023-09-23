@@ -282,6 +282,15 @@ resetprompt(void){
 
 
 void
+clearprompt(void){
+	/* clear window prompt */
+	/* delete all text without changing history state */
+
+	toprompt("", 0);
+}
+
+
+void
 resethstate(void){
 	/* reset history state */
 
@@ -357,7 +366,7 @@ processhist(int kbdcmd)
 		resethstate();
 		state.wwid = wid;
 		state.pfilter = fromprompt();	/* window switch, assume from beginning */
-		resetprompt();
+		clearprompt();
 	}
 
 
