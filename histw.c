@@ -10,6 +10,7 @@
 
 static int uselocal;
 static int useglobal;
+static int handlequirk;
 
 static int wsysfd;
 
@@ -930,6 +931,27 @@ processkbd(char *s)
 			}
 		}
 
+
+		/* quirk handling */
+		if(handlequirk > 0){
+			/* quirk: handle drawterm compiled for wayland on linux */
+			/*        where it was observed that an extra character */
+			/*        is submitted (7 or BELL when pressing CTRL + DOWN) */
+			/*        or (8 or BACKSPACE when pressing CTRL + UP). */
+			/*        In that instance, skip those characters. */
+			if (mod > 0){
+				if(*s == 'c'){
+					if(r == 7){
+						skip = 1;
+					}
+					if(r == 8){
+						skip = 1;
+					}
+				}
+			}
+		}
+
+
 		if(!skip){
 			memmove(b+o, p, n);
 			o += n;
@@ -945,7 +967,7 @@ processkbd(char *s)
 static void
 usage(void)
 {
-	fprint(2, "usage: %s [-g | -G]\n", argv0);
+	fprint(2, "usage: %s [-g | -G] [-q]\n", argv0);
 	exits("usage");
 }
 
@@ -955,6 +977,7 @@ main(int argc, char **argv)
 {
 	uselocal = 1;
 	useglobal = 0;
+	handlequirk = 0;
 
 	ARGBEGIN{
 	case 'g':
@@ -963,6 +986,9 @@ main(int argc, char **argv)
 	case 'G':
 		uselocal = 0;
 		useglobal = 1;
+		break;
+	case 'q':
+		handlequirk = 1;
 		break;
 	default:
 		usage();
