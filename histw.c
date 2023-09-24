@@ -228,40 +228,29 @@ toprompt(char *text, int len)
 	/* set window prompt with supplied text */
 	/* to ensure known state, delete anything that was there before */
 
-	#define CHUNKSIZE 64
+	int i;
+	char kbdbf[3] = {0, 0, 0};
 
-	int kfd, chunk, offset;
-	char ctlbf[4];
+	kbdbf[0] = 'c';	/* denote to kbdtap a regular character is being sent*/
 
-	ctlbf[0] = 2;	/* STX (ctrl+b) - move cursor to prompt */
-	ctlbf[1] = 5;	/* ENQ (ctrl+e) - move cursor to end of text in promt */
-	ctlbf[2] = 21;	/* NAK (ctrl+u) - delete everything behind cursor */
-	ctlbf[3] = 0;	/* NULL - everything should be null terminted just in case */
 
-	kfd = open("/dev/kbdin", OWRITE);
-	if(kfd < 0){
+	kbdbf[1] = 2;	/* STX (ctrl+b) - move cursor to prompt */
+	write(1, kbdbf, 2);
+	kbdbf[1] = 5;	/* ENQ (ctrl+e) - move cursor to end of text in promt */
+	write(1, kbdbf, 2);
+	kbdbf[1] = 21;	/* NAK (ctrl+u) - delete everything behind cursor */
+	write(1, kbdbf, 2);
+
+
+	if(len < 1){
 		return;
 	}
 
-	/* clear prompt */
-	write(kfd, ctlbf, 3);
 
-	offset = 0;
-
-	while(len > 0){
-		if(len > CHUNKSIZE){
-			chunk = CHUNKSIZE;
-		} else {
-			chunk = len;
-		}
-
-		write(kfd, text+offset, chunk);
-
-		offset += chunk;
-		len -= chunk;
+	for(i=0; i<len; i++){
+		kbdbf[1] = text[i];
+		write(1, kbdbf, 2);
 	}
-
-	close(kfd);
 }
 
 
