@@ -612,13 +612,13 @@ processhist(int kbdcmd)
 				/* fail-save's - just in case if don't know what's going on */
 				if((rc == 0) && (bfl != 0)){
 					/* tainted history - less to read than detected at start */
-					toprompt("", 0);
+					clearprompt();
 					tp = 0;
 					state.hop = 0;
 				}
 				if((rc == 0) && (bfl == 0) && (ssp == sse)){
 					/* tainted buffer - nothing to read or parse */
-					toprompt("", 0);
+					clearprompt();
 					tp = 0;
 					state.hop = 0;
 				}
