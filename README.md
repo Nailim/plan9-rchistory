@@ -56,7 +56,7 @@ And then call the script in *$home/bin/rc/riostart* file:
 
 `window srw`
 
-By default, interactive mode searches through history from the current window (local history). Configuring interactive mode to include searching trough history saved from all terminal windows (global history) use "-g" flag in start up script. To search only trough global history, use "-G" flag.
+By default, interactive mode searches through history from the current window (local history). Configuring interactive mode to include searching trough history saved from all terminal windows (global history) use "-g" flag in start up script. To search only trough global history, use "-G" flag. To enable handling of keyboard quirks (currently for drawter compiled for linux on wayland), use "-q" flag.
 
 ## usage
 
