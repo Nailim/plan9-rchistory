@@ -37,6 +37,10 @@ Without flags only LOCAL history will be used.
 With -g flag both LOCAL and GLOBAL history will be used.
 .TP
 With -G flag only GLOBAL history will be used.
+.TP
+With -q flag keyboard quirks (abnormal key combinations) will be processed.
+.TP
+So far supports quirks from drawterm compiled for linux on wayland.
 .SS Running
 Place in riostart or appropriate.
 .PP
