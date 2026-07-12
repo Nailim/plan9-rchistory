@@ -35,8 +35,25 @@ procfilesize(char *fname)
 	}while(r == sizeof buf);
 
 	close(fd);
-	
+
 	return sum;
+}
+
+
+char*
+lbgrow(char *buf, long newcap)
+{
+	/* grow linebf when a single parsed command exceeds the current window */
+	/* NOTE: realloc may move the block - any pointer derived from the old */
+	/*       buf (ssp/sse) must be recomputed after calling this */
+
+	char *nb;
+
+	nb = realloc(buf, newcap);
+	if(nb == nil){
+		sysfatal("hist: realloc: %r");
+	}
+	return nb;
 }
 
 
@@ -67,7 +84,14 @@ main(int argc, char **argv)
 	}ARGEND
 
 
-	char linebf[LBFS];
+	char *linebf;
+	int lbcap;
+
+	linebf = malloc(LBFS);
+	if(linebf == nil){
+		sysfatal("hist: malloc: %r");
+	}
+	lbcap = LBFS;
 
 
 	/* print global history from $home/lib/rchistory */
@@ -86,9 +110,9 @@ main(int argc, char **argv)
 		hfd = open(histpath, OREAD);
 		if(hfd > 0){
 			do{
-				rc = read(hfd, linebf, sizeof linebf);
+				rc = read(hfd, linebf, lbcap);
 				write(1, linebf, rc);
-			}while(rc == sizeof linebf);
+			}while(rc == lbcap);
 			close(hfd);
 		}
 
@@ -110,10 +134,11 @@ main(int argc, char **argv)
 		char *ssp;		/* pointer to prompt */
 		char *sse;		/* pointer to EOL */
 
-		int bfl = LBFS - 1;	/* buffer left to read in */
+		int bfl = lbcap - 1;	/* buffer left to read in */
 		int bfld = 0;		/* buffer diff between moved and remaining space */
+		int oldcap, newcap;	/* used when growing linebf */
 
-		memset(linebf, 0, LBFS);
+		memset(linebf, 0, lbcap);
 
 		/* get current /dev/text size before we expand it */
 		tsize = procfilesize("/dev/text");
@@ -125,11 +150,11 @@ main(int argc, char **argv)
 		/* first read exception - less text than buffer */
 		if(bfl > tsize){
 			bfl = tsize;
-			bfld = ((LBFS-1) - bfl);
+			bfld = ((lbcap-1) - bfl);
 		}
 
 		while(tp < tsize){
-			rc = read(tfd, linebf + ((LBFS-1)-bfl) - bfld,  bfl);
+			rc = read(tfd, linebf + ((lbcap-1)-bfl) - bfld,  bfl);
 			bfl -= rc;
 			bfld = 0;
 			tr += rc;
@@ -139,13 +164,11 @@ main(int argc, char **argv)
 				/* if prompt is found and is behind newline char or start of buffer */
 				if(ssp-linebf > 0){
 					/* align prompt with start of the buffer */
-					memmove(linebf, ssp, LBFS - (ssp-linebf));
-					memset(linebf + LBFS - (ssp-linebf), 0, (ssp-linebf));
+					memmove(linebf, ssp, lbcap - (ssp-linebf));
+					memset(linebf + lbcap - (ssp-linebf), 0, (ssp-linebf));
 					bfl += (ssp-linebf);
 					tp += (ssp-linebf);
 				}
-
-				/* we trust the buffer is long enough for the whole command */
 
 				sse = strchr(linebf, '\n');
 				if(sse != 0){
@@ -157,18 +180,32 @@ main(int argc, char **argv)
 						}
 					}
 
-					memmove(linebf, sse+1, LBFS - (sse-linebf) + 1);
-					memset(linebf + LBFS - (sse-linebf) + 1, 0, (sse-linebf));
+					memmove(linebf, sse+1, lbcap - (sse-linebf) + 1);
+					memset(linebf + lbcap - (sse-linebf) + 1, 0, (sse-linebf));
 					bfl += ((sse-linebf) + 1);
 					tp += ((sse-linebf) + 1);
+				} else {
+					/* prompt is aligned to the start of the buffer but no */
+					/* terminating newline was found - the command is longer */
+					/* than lbcap, grow the buffer instead of falling through */
+					/* to the "no hit" exception below (which would silently */
+					/* drop this command from the output) */
+					oldcap = lbcap;
+					newcap = oldcap * 2;
+					linebf = lbgrow(linebf, newcap);
+					memset(linebf + oldcap, 0, (newcap-oldcap));
+					bfl += (newcap-oldcap);
+					lbcap = newcap;
+					/* tp is intentionally left untouched, tr already */
+					/* guarantees forward progress next iteration */
 				}
 			} else {
 				/* if there is no prompt in buffer */
 				/* move to next new line character instead */
 				sse = strchr(linebf, '\n');
-				if((sse != 0) && ((sse-linebf) < LBFS-2)){
-					memmove(linebf, sse+1, LBFS - (sse-linebf) + 1);
-					memset(linebf + LBFS - (sse-linebf) + 1, 0, (sse-linebf));
+				if((sse != 0) && ((sse-linebf) < lbcap-2)){
+					memmove(linebf, sse+1, lbcap - (sse-linebf) + 1);
+					memset(linebf + lbcap - (sse-linebf) + 1, 0, (sse-linebf));
 					bfl += ((sse-linebf) + 1);
 					tp += ((sse-linebf) + 1);
 				}
@@ -176,17 +213,17 @@ main(int argc, char **argv)
 
 			/* no hit in buffer exception */
 			if(bfl == 0){
-				bfl = LBFS - 1;
+				bfl = lbcap - 1;
 				tp += strlen(linebf);
-				
-				memset(linebf, 0, (LBFS-1));
+
+				memset(linebf, 0, (lbcap-1));
 			}
 
 			/* last read (end of data) exception */
 			if((tr+bfl) > tsize){
 				bfld = bfl;
 				bfl = bfl - ((tr+bfl) - tsize);
-				bfld = bfld - bfl;	
+				bfld = bfld - bfl;
 			}
 
 			/* tainted history - less to read than detected at start */
@@ -201,6 +238,8 @@ main(int argc, char **argv)
 		free(prompt);
 
 	}
+
+	free(linebf);
 
 	exits(nil);
 }
