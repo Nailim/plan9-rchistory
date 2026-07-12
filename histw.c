@@ -94,7 +94,7 @@ procfilesize(char *fname)
 	}while(r == sizeof buf);
 
 	close(fd);
-	
+
 	return sum;
 }
 
@@ -115,7 +115,7 @@ diskfilesize(char *fname)
 	sum = dir->length;
 
 	free(dir);
-	
+
 	return sum;
 }
 
@@ -175,7 +175,7 @@ fromprompt(void)
 	memset(pbf, 64, PBS);
 	pbf[PBS-1] = 0;
 
-	
+
 	ulong bfl = PBS - 1;
 	if(ts < bfl){
 		/* less text than buffer */
@@ -287,11 +287,11 @@ resethstate(void){
 	state.tstate = 0;
 	if(uselocal >= useglobal){
 		state.tsrc = 1;
-	
+
 	} else {
 		state.tsrc = 2;
 	}
-	
+
 	state.tsize = 0;
 	state.tpos = 0;
 
@@ -303,6 +303,24 @@ resethstate(void){
 	state.pfilter = nil;
 
 	state.wwid = 0;
+}
+
+
+char*
+lbgrow(char *buf, long newcap)
+{
+	/* grow linebf when a single parsed command exceeds the current window */
+	/* NOTE: realloc may move the block - any pointer derived from the old */
+	/*       buf (ssp/sse/ssee/tmpfr) must be recomputed after calling this */
+
+	char *nb;
+
+	nb = realloc(buf, newcap);
+	if(nb == nil) {
+		sysfatal("processhist: realloc: %r");
+	}
+
+	return nb;
 }
 
 
@@ -320,11 +338,18 @@ processhist(int kbdcmd)
 	/* 2 - global history */
 
 	int hfd, fr;
-		
-	char linebf[LBFS];
+
+	char *linebf;
+	int lbcap;
 	char histpath[HPS];
-	
+
 	long hc;
+
+	linebf = malloc(LBFS);
+	if(linebf == nil) {
+		sysfatal("processhist: malloc: %r");
+	}
+	lbcap = LBFS;
 
 
 	/* find current window id */
@@ -345,7 +370,7 @@ processhist(int kbdcmd)
 		if(tokenize(s, t, nelem(t)) != 6){
 			continue;
 		}
-	
+
 		if(strcmp(t[4], "current") == 0){
 			wid = atoi(d->name);
 			break;
@@ -399,8 +424,9 @@ processhist(int kbdcmd)
 		char *ssee;		/* pointer to second last EOL */
 		char *tmpfr;
 
-		int bfl = LBFS - 1;	/* buffer left to read in */
+		int bfl = lbcap - 1;	/* buffer left to read in */
 		int bfld = 0;		/* buffer diff between moved and remaining space */
+		int oldcap, newcap;	/* used when growing linebf */
 
 		memset(histpath, 0, HPS);
 
@@ -430,13 +456,13 @@ processhist(int kbdcmd)
 		/* history up */
 		if(state.hop > 0){
 			/* search in reverse MUST NOT have null chars at the beginning */
-			memset(linebf, 64, LBFS);
-			linebf[LBFS-1] = 0;
+			memset(linebf, 64, lbcap);
+			linebf[lbcap-1] = 0;
 
 			/* first read exception - less text than buffer*/
 			if(bfl > (state.tsize - (state.tsize-state.tpos))){
 				bfl = (state.tsize - (state.tsize-state.tpos));
-				bfld = ((LBFS-1) - bfl);
+				bfld = ((lbcap-1) - bfl);
 			}
 
 			tr = 0;
@@ -463,7 +489,7 @@ processhist(int kbdcmd)
 						ssp = tmpfr;
 						tmpfr = tmpfr + 1;
 					}
-				} while(tmpfr != nil && tmpfr < (linebf + LBFS - 1));
+				} while(tmpfr != nil && tmpfr < (linebf + lbcap - 1));
 
 				/* find newline char */
 				sse = nil;
@@ -483,7 +509,7 @@ processhist(int kbdcmd)
 						}
 						tmpfr = tmpfr + 1;
 					}
-				} while(tmpfr != nil && tmpfr < (linebf + LBFS - 1));
+				} while(tmpfr != nil && tmpfr < (linebf + lbcap - 1));
 
 
 				/* history hit */
@@ -500,10 +526,10 @@ processhist(int kbdcmd)
 								if(filtercheck(ssp+prc+1, (sse-ssp)-prc-1, state.pfilter)){
 									/* command to prompt */
 
-									if(tp < (LBFS-1-(ssp-linebf))){
+									if(tp < (lbcap-1-(ssp-linebf))){
 										tp = 0;
 									} else {
-										tp -= (LBFS-1-(ssp-linebf));
+										tp -= (lbcap-1-(ssp-linebf));
 									}
 
 									toprompt(ssp+prc+1, (sse-ssp)-prc-1);
@@ -514,82 +540,88 @@ processhist(int kbdcmd)
 					}
 					if((ssp-linebf) != 0){
 						/* move only if there is something to move */
-						memmove(linebf + (LBFS-1-(ssp-linebf)), linebf, (ssp-linebf));
+						memmove(linebf + (lbcap-1-(ssp-linebf)), linebf, (ssp-linebf));
 					}
-					memset(linebf, 64, (LBFS-1-(ssp-linebf)));
-					bfl += (LBFS-1-(ssp-linebf));
-					if(tp < (LBFS-1-(ssp-linebf))){
+					memset(linebf, 64, (lbcap-1-(ssp-linebf)));
+					bfl += (lbcap-1-(ssp-linebf));
+					if(tp < (lbcap-1-(ssp-linebf))){
 						tp = 0;
 					} else {
-						tp -= (LBFS-1-(ssp-linebf));
+						tp -= (lbcap-1-(ssp-linebf));
 					}
 				}
 
 				/* buffer move - prompt */
 				if((ssp != nil) && (sse == nil)){
 					if((ssp-linebf) == 0){
-						/* nothing to move if prompt is at the beginning of buffer */
-						memset(linebf, 64, (LBFS-1));
-						bfl += (LBFS-1);
-						if(tp < (LBFS-1)){
-							tp = 0;
-						} else {
-							tp -= (LBFS-1);
-						}
+						/* prompt found but no terminating newline is in the */
+						/* window yet - the command is longer than lbcap, grow */
+						/* the buffer (keeping content right-aligned) instead */
+						/* of discarding it, and let the next iteration read */
+						/* more of the command into the new front space */
+						oldcap = lbcap;
+						newcap = oldcap * 2;
+						linebf = lbgrow(linebf, newcap);
+						memmove(linebf + (newcap-oldcap), linebf, oldcap);
+						memset(linebf, 64, (newcap-oldcap));
+						bfl += (newcap-oldcap);
+						lbcap = newcap;
+						/* tp is intentionally left untouched: nothing was */
+						/* resolved yet, tr already guarantees forward progress */
 					} else {
 						/* move the rest carefully */
-						memmove(linebf + (LBFS-1-(ssp-linebf)), linebf, (ssp-linebf));
-						memset(linebf, 64, (LBFS-1-(ssp-linebf)));
-						bfl += (LBFS-1-(ssp-linebf));
-						if(tp < (LBFS-1-(ssp-linebf))){
+						memmove(linebf + (lbcap-1-(ssp-linebf)), linebf, (ssp-linebf));
+						memset(linebf, 64, (lbcap-1-(ssp-linebf)));
+						bfl += (lbcap-1-(ssp-linebf));
+						if(tp < (lbcap-1-(ssp-linebf))){
 							tp = 0;
 						} else {
-							tp -= (LBFS-1-(ssp-linebf));
+							tp -= (lbcap-1-(ssp-linebf));
 						}
 					}
 				}
 
 				/* buffer move - newline */
 				if((ssp == nil) && (sse != nil)){
-					if((sse-linebf) == LBFS-2){
+					if((sse-linebf) == lbcap-2){
 						/* if newline char is the last char in buffer ... */
 						if (ssee != nil){
 							/* move untill second last newline char */
-							memmove(linebf + (LBFS-2-(ssee-linebf)), linebf, (ssee-linebf) + 1);
-							memset(linebf, 64, (LBFS-2-(ssee-linebf)));
-							bfl += (LBFS-2-(ssee-linebf));
-							if(tp < (LBFS-2-(ssee-linebf))){
+							memmove(linebf + (lbcap-2-(ssee-linebf)), linebf, (ssee-linebf) + 1);
+							memset(linebf, 64, (lbcap-2-(ssee-linebf)));
+							bfl += (lbcap-2-(ssee-linebf));
+							if(tp < (lbcap-2-(ssee-linebf))){
 								tp = 0;
 							} else {
-								tp -= (LBFS-2-(ssee-linebf));
+								tp -= (lbcap-2-(ssee-linebf));
 							}
 						} else {
 							/* nothing to do but clear whole buffer */
-							memset(linebf, 64, (LBFS-1));
-							bfl += (LBFS-1);
-							if(tp < (LBFS-1)){
+							memset(linebf, 64, (lbcap-1));
+							bfl += (lbcap-1);
+							if(tp < (lbcap-1)){
 								tp = 0;
 							} else {
-								tp -= (LBFS-1);
+								tp -= (lbcap-1);
 							}
 						}
 					} else {
 						/* move till last newline char */
-						memmove(linebf + (LBFS-2-(sse-linebf)), linebf, (sse-linebf) + 1);
-						memset(linebf, 64, (LBFS-2-(sse-linebf)));
-						bfl += (LBFS-2-(sse-linebf));
-						if(tp < (LBFS-2-(sse-linebf))){
+						memmove(linebf + (lbcap-2-(sse-linebf)), linebf, (sse-linebf) + 1);
+						memset(linebf, 64, (lbcap-2-(sse-linebf)));
+						bfl += (lbcap-2-(sse-linebf));
+						if(tp < (lbcap-2-(sse-linebf))){
 							tp = 0;
 						} else {
-							tp -= (LBFS-2-(sse-linebf));
+							tp -= (lbcap-2-(sse-linebf));
 						}
 					}
 				}
 
 				/* no hit in buffer exception */
 				if((ssp == nil) && (sse == nil)){
-					memset(linebf, 64, (LBFS-1));
-					bfl = (LBFS-1);
+					memset(linebf, 64, (lbcap-1));
+					bfl = (lbcap-1);
 				}
 
 				/* last read (end of data) exception */
@@ -637,12 +669,12 @@ processhist(int kbdcmd)
 		/* history down */
 		if(state.hop < 0){
 			/* search in reverse MUST have null chars at the end */
-			memset(linebf, 0, LBFS);
+			memset(linebf, 0, lbcap);
 
 			/* first read exception - less text than buffer */
 			if(bfl > (state.tsize - state.tpos)){
 				bfl = (state.tsize - state.tpos);
-				bfld = ((LBFS-1) - bfl);
+				bfld = ((lbcap-1) - bfl);
 			}
 
 			tr = 0;
@@ -659,7 +691,7 @@ processhist(int kbdcmd)
 			}
 
 			while(tp < state.tsize){
-				rc = pread(tfd, linebf + ((LBFS-1)-bfl) - bfld,  bfl, tr);
+				rc = pread(tfd, linebf + ((lbcap-1)-bfl) - bfld,  bfl, tr);
 				bfl -= rc;
 				bfld = 0;
 				tr += rc;
@@ -669,13 +701,11 @@ processhist(int kbdcmd)
 					/* if prompt is found and is behind newline char or start of buffer */
 					if(ssp-linebf > 0){
 						/* align prompt with start of the buffer */
-						memmove(linebf, ssp, LBFS - (ssp-linebf));
-						memset(linebf + LBFS - (ssp-linebf), 0, (ssp-linebf));
+						memmove(linebf, ssp, lbcap - (ssp-linebf));
+						memset(linebf + lbcap - (ssp-linebf), 0, (ssp-linebf));
 						bfl += ((ssp-linebf));
 						tp += ((ssp-linebf));
 					}
-
-					/* we trust the buffer is long enough for the whole command */
 
 					sse = strchr(linebf, '\n');
 					if(sse != nil){
@@ -696,18 +726,32 @@ processhist(int kbdcmd)
 								}
 							}
 						}
-						memmove(linebf, sse+1, LBFS - (sse-linebf) + 1);
-						memset(linebf + LBFS - (sse-linebf) + 1, 0, (sse-linebf));
+						memmove(linebf, sse+1, lbcap - (sse-linebf) + 1);
+						memset(linebf + lbcap - (sse-linebf) + 1, 0, (sse-linebf));
 						bfl += ((sse-linebf) + 1);
 						tp += ((sse-linebf) + 1);
+					} else {
+						/* prompt is aligned to the start of the buffer but no */
+						/* terminating newline was found - the command is longer */
+						/* than lbcap, grow the buffer instead of falling through */
+						/* to the "no hit" exception below (which would wrongly */
+						/* treat this as end-of-history and reset the prompt) */
+						oldcap = lbcap;
+						newcap = oldcap * 2;
+						linebf = lbgrow(linebf, newcap);
+						memset(linebf + oldcap, 0, (newcap-oldcap));
+						bfl += (newcap-oldcap);
+						lbcap = newcap;
+						/* tp is intentionally left untouched, tr already */
+						/* guarantees forward progress next iteration */
 					}
 				} else {
 					/* if there is no prompt in buffer */
 					/* move to next new line character instead */
 					sse = strchr(linebf, '\n');
-					if((sse != nil) && ((sse-linebf) < LBFS-2)){
-						memmove(linebf, sse+1, LBFS - (sse-linebf) + 1);
-						memset(linebf + LBFS - (sse-linebf) + 1, 0, (sse-linebf));
+					if((sse != nil) && ((sse-linebf) < lbcap-2)){
+						memmove(linebf, sse+1, lbcap - (sse-linebf) + 1);
+						memset(linebf + lbcap - (sse-linebf) + 1, 0, (sse-linebf));
 						bfl += ((sse-linebf) + 1);
 						tp += ((sse-linebf) + 1);
 					}
@@ -715,9 +759,9 @@ processhist(int kbdcmd)
 
 				/* no hit in buffer exception */
 				if(bfl == 0){
-					bfl += LBFS - 1;
+					bfl += lbcap - 1;
 					tp += strlen(linebf);
-					memset(linebf, 0, (LBFS-1));
+					memset(linebf, 0, (lbcap-1));
 
 					/* no more history, reset prompt */
 					resetprompt();
@@ -762,7 +806,7 @@ processhist(int kbdcmd)
 			state.tstate = 1;
 		}
 
-		memset(linebf, 0, LBFS);
+		memset(linebf, 0, lbcap);
 
 		hfd = open(histpath, OREAD);
 
@@ -774,11 +818,23 @@ processhist(int kbdcmd)
 
 		/* history up */
 		if(state.hop > 0){
-			int lbc = LBFS - 1;
+			int lbc = lbcap - 1;
+			int oldcap, newcap;
 
 			for(hc = state.tpos; hc >= 0; hc--){
+				if(lbc < 0){
+					/* command longer than lbcap - grow and keep scanning, */
+					/* re-right-aligning the bytes collected so far */
+					oldcap = lbcap;
+					newcap = oldcap * 2;
+					linebf = lbgrow(linebf, newcap);
+					memmove(linebf + (newcap-oldcap), linebf, oldcap);
+					lbc = newcap - oldcap - 1;
+					lbcap = newcap;
+				}
+
 				pread(hfd, linebf+lbc, 1, hc-1);
-			
+
 				if(linebf[lbc] == '\n' || hc == 0){
 					if(hc == 0){
 						state.tpos = 0;
@@ -787,25 +843,25 @@ processhist(int kbdcmd)
 						state.tpos = hc - 1;
 					}
 
-					if(lbc == LBFS - 1){
+					if(lbc == lbcap - 1){
 						continue;
 					}
 
 					if(state.hop > 1){
 						state.hop--;
-						lbc = LBFS - 1;
+						lbc = lbcap - 1;
 						continue;
 					}
 
 					/* skip displaying commands without filter string */
-					if(filtercheck(linebf+lbc+1, LBFS-lbc-1, state.pfilter)){
-						toprompt(linebf+lbc+1, LBFS-lbc-1);
+					if(filtercheck(linebf+lbc+1, lbcap-lbc-1, state.pfilter)){
+						toprompt(linebf+lbc+1, lbcap-lbc-1);
 						break;
 					} else {
-						lbc = LBFS - 1;
+						lbc = lbcap - 1;
 						continue;
 					}
-				}	
+				}
 				lbc--;
 			}
 
@@ -817,11 +873,21 @@ processhist(int kbdcmd)
 		}
 
 
-		/* history down */	
+		/* history down */
 		if(state.hop < 0){
 			int lc = 0;
+			int oldcap, newcap;
 
 			for(hc = state.tpos; ; hc++){
+				if(lc >= lbcap){
+					/* command longer than lbcap - grow and keep scanning */
+					/* (left-aligned content is unaffected by the realloc) */
+					oldcap = lbcap;
+					newcap = oldcap * 2;
+					linebf = lbgrow(linebf, newcap);
+					lbcap = newcap;
+				}
+
 				fr = pread(hfd, linebf+lc, 1, hc);
 				if(fr == 0){
 					/* no more history */
@@ -867,6 +933,8 @@ processhist(int kbdcmd)
 
 		free(home);
 	}
+
+	free(linebf);
 }
 
 
@@ -889,7 +957,7 @@ processkbd(char *s)
 		if(utfrune(s+1, Kctl) != nil){
 			mod |= Kctl;
 		}
-	}	
+	}
 
 	for(p = s+1; *p != 0; p += n){
 		if((n = chartorune(&r, p)) == 1 && r == Runeerror){
@@ -899,7 +967,7 @@ processkbd(char *s)
 			o += n;
 			break;
 		}
-		
+
 		skip = 0;
 
 		/* react to key combinations */
