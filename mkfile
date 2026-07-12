@@ -1,8 +1,13 @@
 </$objtype/mkfile
 
+
 RC=/rc/bin
 BIN=/$objtype/bin
 MAN=/sys/man
+
+RC_LOCAL=$home/bin/rc
+BIN_LOCAL=$home/bin/$objtype
+
 
 ALL=hist histw
 
@@ -25,8 +30,8 @@ clean:V:
 	rm -f *.$O histw
 
 install:V:
-	mv hist $BIN/
-	mv histw $BIN/
+	cp hist $BIN/
+	cp histw $BIN/
 	cp savehist $RC/
 	
 	cp man/1/hist $MAN/1/
@@ -41,3 +46,13 @@ uninstall:V:
 	rm -f $MAN/1/hist
 	rm -f $MAN/1/histw
 	rm -f $MAN/1/savehist
+
+install-local:V:
+	cp hist $BIN_LOCAL/
+	cp histw $BIN_LOCAL/
+	cp savehist $RC_LOCAL/
+
+uninstall-local:V:
+	rm -f $BIN_LOCAL/hist
+	rm -f $BIN_LOCAL/histw
+	rm -f $RC_LOCAL/savehist

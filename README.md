@@ -2,15 +2,15 @@
 
 ## about
 
-An attempt to bring command history through keyboard shortcuts to rc shell inside rio window, following the philosophy of modularity.
+An attempt to bring command history through keyboard shortcuts to the rc shell inside rio window, following the philosophy of modularity.
 
 ## why
 
-Plan9 was built with a graphical interface in mind, which allows for some wonderful functionality (such as inline editing and execution of previous commands), and should be highly encouraged to try out.
+Plan9 was built with a graphical interface in mind, which allows for some wonderful functionality (such as inline editing and execution of previous commands) and should be highly encouraged to try out.
 
-That being said, there are use cases in which a command history functionality and keyboard interface would be useful: repetitive commands (executing same/similar command for testing or scanning, ...), faster recollection of already used commands (between context switches, extended usage sessions, crowded printouts, ...), access to previous commands between terminals and sessions (continuation of used commands trough time between sessions, reboots, ...), ...
+That being said, there are use cases in which a command history functionality and keyboard interface would be useful: repetitive commands (executing the same/similar command for testing or scanning, ...), faster recollection of already used commands (between context switches, extended usage sessions, crowded printouts, ...), access to previous commands between terminals and sessions (continuation of used commands through time between sessions, reboots, ...), ...
 
-But the most, in my opinion, important reason: **learning**! The frustration of dealing with the unknown operation of the system (mistyped command, experimenting with flags, pressure of remembering large quantities of information at once, ...) instead of learning the system, can (and will) impede the speed at which the knowledge is acquired or (in the worst case) deter from actually pursuing the acquisition of this particular knowledge. In short, its more fun to learn the thing, than to deal with the peripheral things needed to learn the thing.
+But the most, in my opinion, important reason: **learning**! The frustration of dealing with the unknown operation of the system (mistyped command, experimenting with flags, pressure of remembering large quantities of information at once, ...) instead of learning the system can (and will) impede the speed at which the knowledge is acquired or (in the worst case) deter from actually pursuing the acquisition of this particular knowledge. In short, it's more fun to learn the thing than to deal with the peripheral things needed to learn the thing.
 
 ## installation
 
@@ -18,17 +18,31 @@ But the most, in my opinion, important reason: **learning**! The frustration of 
 
 `mk`
 
-### install
+### install globaly
 
-Installs to user folder $home/bin/rc and $home/bin/$objtype.
+Installs to system folder /bin/rc and /bin/$objtype.
 
 `mk install`
 
-### uninstall
+### install localy
 
-Removes from user folder.
+Installs to user folder $home/bin/rc and $home/bin/$objtype.
+
+It also skips installing the man pages.
+
+`mk install-local`
+
+### uninstall global installation
+
+Removes from user global folders.
 
 `mk uninstall`
+
+### uninstall local installation
+
+Removes from user folders.
+
+`mk uninstall-local`
 
 ### configuration
 
@@ -38,7 +52,7 @@ For example, the following line should be inserted in *$home/bin/rc/riostart* fi
 
 `</dev/kbdtap histw >/dev/kbdtap`
 
-If you're having issues with additional windows on startup, you can put the previous definition on to a separate script and call that from riostart file.
+If you're having issues with additional windows on startup, you can put the previous definition into a separate script and call that from the riostart file.
 
 For example, create a script srw as *$home/bin/rc/srw* (with riow for pipe examples):
 
@@ -56,7 +70,7 @@ And then call the script in *$home/bin/rc/riostart* file:
 
 `window srw`
 
-By default, interactive mode searches through history from the current window (local history). Configuring interactive mode to include searching trough history saved from all terminal windows (global history) use "-g" flag in start up script. To search only trough global history, use "-G" flag. To enable handling of keyboard quirks (currently for drawter compiled for linux on wayland), use "-q" flag.
+By default, interactive mode searches through history from the current window (local history). Configuring interactive mode to include searching through history saved from all terminal windows (global history) use "-g" flag in start up script. To search only through global history, use "-G" flag. To enable handling of keyboard quirks (currently for drawter compiled for linux on wayland), use "-q" flag.
 
 ## usage
 
@@ -66,13 +80,13 @@ By default, interactive mode searches through history from the current window (l
 
 Run *hist* command to print out the commands used in this terminal window. By default, it parses and prints history from the current terminal window (local history). To include history saved from all terminal windows (global history) use "-g" flag. To print out only global history, use "-G" flag.
 
-If grepping trough hist output is too much of a hassle, add a wrapper function to your profile:
+If grepping through hist output is too much of a hassle, add a wrapper function to your profile:
 
 `fn h { if(test $#* '=' 0) hist -G; if not hist -G | grep $* }`
 
 **savehist**
 
-Run *savehist* command to parse and save current local history to global history, located in $home/lib/rchistory file.
+Run *savehist* command to parse and save the current local history to the global history, located in the $home/lib/rchistory file.
 
 Define a *quit* function to save and exit the current terminal window by defining the following rc function in your user profile:
 
@@ -82,11 +96,11 @@ Define a *quit* function to save and exit the current terminal window by definin
 
 **histw**
 
-Use CTRL + UP or CTRL + DOWN key combinations to insert previous or next line of history in to the prompt.
+Use CTRL + UP or CTRL + DOWN key combinations to insert the previous or next line of history into the prompt.
 
-To search trough history, type text to an empty prompt in terminal window before using key combinations. 
+To search through history, type text into an empty prompt in the terminal window before using key combinations. 
 
-Pressing enter key (and running the selected command) or pressing delete key (canceling selected command) will reset interactive history to initial state.
+Pressing the enter key (and running the selected command) or pressing the delete key (canceling the selected command) will reset interactive history to its initial state.
 
 ## faq
 
