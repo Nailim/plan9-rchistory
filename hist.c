@@ -180,8 +180,8 @@ main(int argc, char **argv)
 						}
 					}
 
-					memmove(linebf, sse+1, lbcap - (sse-linebf) + 1);
-					memset(linebf + lbcap - (sse-linebf) + 1, 0, (sse-linebf));
+					memmove(linebf, sse+1, lbcap - (sse-linebf) - 1);
+					memset(linebf + lbcap - (sse-linebf) - 1, 0, (sse-linebf) + 1);
 					bfl += ((sse-linebf) + 1);
 					tp += ((sse-linebf) + 1);
 				} else {
@@ -204,8 +204,8 @@ main(int argc, char **argv)
 				/* move to next new line character instead */
 				sse = strchr(linebf, '\n');
 				if((sse != 0) && ((sse-linebf) < lbcap-2)){
-					memmove(linebf, sse+1, lbcap - (sse-linebf) + 1);
-					memset(linebf + lbcap - (sse-linebf) + 1, 0, (sse-linebf));
+					memmove(linebf, sse+1, lbcap - (sse-linebf) - 1);
+					memset(linebf + lbcap - (sse-linebf) - 1, 0, (sse-linebf) + 1);
 					bfl += ((sse-linebf) + 1);
 					tp += ((sse-linebf) + 1);
 				}

@@ -726,8 +726,8 @@ processhist(int kbdcmd)
 								}
 							}
 						}
-						memmove(linebf, sse+1, lbcap - (sse-linebf) + 1);
-						memset(linebf + lbcap - (sse-linebf) + 1, 0, (sse-linebf));
+						memmove(linebf, sse+1, lbcap - (sse-linebf) - 1);
+						memset(linebf + lbcap - (sse-linebf) - 1, 0, (sse-linebf) + 1);
 						bfl += ((sse-linebf) + 1);
 						tp += ((sse-linebf) + 1);
 					} else {
@@ -750,8 +750,8 @@ processhist(int kbdcmd)
 					/* move to next new line character instead */
 					sse = strchr(linebf, '\n');
 					if((sse != nil) && ((sse-linebf) < lbcap-2)){
-						memmove(linebf, sse+1, lbcap - (sse-linebf) + 1);
-						memset(linebf + lbcap - (sse-linebf) + 1, 0, (sse-linebf));
+						memmove(linebf, sse+1, lbcap - (sse-linebf) - 1);
+						memset(linebf + lbcap - (sse-linebf) - 1, 0, (sse-linebf) + 1);
 						bfl += ((sse-linebf) + 1);
 						tp += ((sse-linebf) + 1);
 					}
